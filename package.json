@@ -1,0 +1,17 @@
+{
+  "name": "topovis",
+  "version": "1.0.0",
+  "description": "Topology visualiser",
+  "license": "ISC",
+  "author": "Klick3R",
+  "type": "commonjs",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "body-parser": "^2.2.0",
+    "express": "^5.1.0",
+    "express-session": "^1.18.1"
+  }
+}

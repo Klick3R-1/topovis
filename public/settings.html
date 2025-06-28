@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Settings</title>
+  <style>
+    body {
+      background: #121212;
+      color: #eee;
+      font-family: sans-serif;
+      margin: 0;
+      padding: 2em;
+    }
+    h1 {
+      color: #66c0f4;
+    }
+    input[type="text"] {
+      padding: 5px;
+      font-size: 14px;
+      background: #1c1c1c;
+      border: 1px solid #444;
+      color: #eee;
+    }
+    button {
+      padding: 6px 10px;
+      background: #2c2f33;
+      border: 1px solid #555;
+      color: #eee;
+      cursor: pointer;
+      margin-left: 5px;
+    }
+    button:hover {
+      background: #3c3f44;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      margin: 5px 0;
+    }
+    a {
+      color: #66c0f4;
+      display: inline-block;
+      margin-top: 1em;
+    }
+  </style>
+</head>
+<body>
+  <h1>⚙️ Settings</h1>
+
+  <form id="type-form">
+    <input type="text" id="new-type" placeholder="New device type..." />
+    <button type="submit">➕ Add Type</button>
+  </form>
+
+  <h2>Available Types</h2>
+  <ul id="type-list"></ul>
+
+  <a href="/">← Back to Editor</a>
+
+  <script>
+    let types = [];
+
+    async function loadTypes() {
+      const res = await fetch('/config');
+      const config = await res.json();
+      types = config.types || [];
+      renderTypeList();
+    }
+
+    function renderTypeList() {
+      const ul = document.getElementById('type-list');
+      ul.innerHTML = '';
+      types.forEach((type, i) => {
+        const li = document.createElement('li');
+        li.textContent = type + ' ';
+        const del = document.createElement('button');
+        del.textContent = '🗑️';
+        del.onclick = () => {
+          types.splice(i, 1);
+          saveTypes();
+        };
+        li.appendChild(del);
+        ul.appendChild(li);
+      });
+    }
+
+    function saveTypes() {
+      fetch('/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ types })
+      }).then(res => {
+        if (!res.ok) alert('❌ Failed to save');
+        else renderTypeList();
+      });
+    }
+
+    document.getElementById('type-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const input = document.getElementById('new-type');
+      const value = input.value.trim();
+      if (value && !types.includes(value)) {
+        types.push(value);
+        saveTypes();
+        input.value = '';
+      }
+    });
+
+    loadTypes();
+  </script>
+</body>
+</html>

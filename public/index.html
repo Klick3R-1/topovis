@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Network Editor</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; background: #121212; color: #eee; }
+    #sidebar {
+      width: 200px;
+      background: #1e1e1e;
+      padding: 1em;
+      float: left;
+      height: 100vh;
+      box-sizing: border-box;
+      border-right: 1px solid #333;
+    }
+    #canvas-container {
+      margin-left: 200px;
+      height: 100vh;
+      position: relative;
+      background: #121212;
+      overflow: hidden;
+    }
+    #line-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 0;
+      pointer-events: auto;
+    }
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+    .node {
+      width: 120px;
+      padding: 8px;
+      text-align: center;
+      border: 1px solid #444;
+      background: #2c2f33;
+      color: #eee;
+      position: absolute;
+      cursor: move;
+      z-index: 2;
+    }
+    .palette-item {
+      margin: 10px 0;
+      padding: 8px;
+      background: #333;
+      color: #eee;
+      cursor: grab;
+      border: 1px solid #555;
+    }
+    .node input {
+      width: 95%;
+      margin-top: 4px;
+      font-size: 12px;
+      background: #1c1c1c;
+      color: #eee;
+      border: 1px solid #444;
+      padding: 2px;
+    }
+    #controls {
+      position: fixed;
+      bottom: 10px;
+      left: 220px;
+      z-index: 9999;
+      background: #1c1c1c;
+      padding: 6px;
+      border: 1px solid #444;
+      color: #eee;
+    }
+    #controls button {
+      background: #2c2f33;
+      color: #eee;
+      border: 1px solid #555;
+      margin-right: 10px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    #controls button:hover {
+      background: #3c3f44;
+    }
+    a { color: #66c0f4; }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <h3>Palette</h3>
+    <div id="palette"></div>
+    <p><a href="/logout">Logout</a></p>
+    <p><a href="/settings">⚙️ Settings</a></p>
+  </div>
+
+  <div id="canvas-container">
+    <canvas id="line-canvas" width="2000" height="2000"></canvas>
+    <div id="canvas" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+  </div>
+
+  <div id="controls">
+    <button onclick="saveLayout()">💾 Save Layout</button>
+    <button onclick="toggleRemoveMode()">🗑️ Remove Mode: <span id="remove-state">OFF</span></button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const lineCanvas = document.getElementById('line-canvas');
+    const ctx = lineCanvas.getContext('2d');
+
+    const connections = [];
+    let selectedNode = null;
+    let removeMode = false;
+
+    function toggleRemoveMode() {
+      removeMode = !removeMode;
+      document.getElementById('remove-state').textContent = removeMode ? 'ON' : 'OFF';
+    }
+
+    function allowDrop(ev) {
+      ev.preventDefault();
+    }
+
+    function createPaletteItem(type) {
+      const item = document.createElement('div');
+      item.className = 'palette-item';
+      item.textContent = type;
+      item.setAttribute('draggable', 'true');
+      item.dataset.type = type;
+      item.addEventListener('dragstart', ev => {
+        ev.dataTransfer.setData("text/plain", item.dataset.type);
+      });
+      return item;
+    }
+
+    function createInputField(placeholder, value = '') {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = placeholder;
+      input.value = value;
+      return input;
+    }
+
+    function getCenter(el) {
+      const canvasRect = document.getElementById('canvas-container').getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      return {
+        x: elRect.left - canvasRect.left + elRect.width / 2,
+        y: elRect.top - canvasRect.top + elRect.height / 2
+      };
+    }
+
+    function drawConnections() {
+      ctx.clearRect(0, 0, lineCanvas.width, lineCanvas.height);
+      connections.forEach(([a, b]) => {
+        const posA = getCenter(a);
+        const posB = getCenter(b);
+        ctx.beginPath();
+        ctx.moveTo(posA.x, posA.y);
+        ctx.lineTo(posB.x, posB.y);
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      });
+    }
+
+    function createNode(data) {
+      const node = document.createElement('div');
+      node.className = 'node';
+      node.innerHTML = '<strong>' + data.type + '</strong><br/>';
+
+      const nameInput = createInputField("Name", data.name || '');
+      const ipInput = createInputField("IP Address", data.ip || '');
+
+      node.appendChild(nameInput);
+      node.appendChild(ipInput);
+
+      node.style.left = data.left;
+      node.style.top = data.top;
+      node.dataset.id = data.id || crypto.randomUUID();
+
+      node.onclick = function(e) {
+        if (removeMode) {
+          connections.forEach((pair, idx) => {
+            if (pair[0] === node || pair[1] === node) connections.splice(idx, 1);
+          });
+          node.remove();
+          drawConnections();
+          return;
+        }
+      };
+
+      node.onmousedown = function(e) {
+        if (removeMode) return;
+
+        if (e.shiftKey) {
+          if (selectedNode && selectedNode !== node) {
+            connections.push([selectedNode, node]);
+            selectedNode = null;
+            drawConnections();
+            return;
+          }
+          selectedNode = node;
+          return;
+        }
+
+        const offsetX = e.clientX - node.offsetLeft;
+        const offsetY = e.clientY - node.offsetTop;
+        function moveHandler(ev) {
+          node.style.left = (ev.clientX - offsetX) + 'px';
+          node.style.top = (ev.clientY - offsetY) + 'px';
+          drawConnections();
+        }
+        function upHandler() {
+          document.removeEventListener('mousemove', moveHandler);
+          document.removeEventListener('mouseup', upHandler);
+        }
+        document.addEventListener('mousemove', moveHandler);
+        document.addEventListener('mouseup', upHandler);
+      };
+
+      canvas.appendChild(node);
+      return node;
+    }
+
+    function drop(ev) {
+      ev.preventDefault();
+      const type = ev.dataTransfer.getData("text/plain");
+      const nodeData = {
+        type,
+        name: '',
+        ip: '',
+        left: ev.clientX + 'px',
+        top: ev.clientY + 'px'
+      };
+      createNode(nodeData);
+    }
+
+    function saveLayout() {
+      const nodes = [];
+      document.querySelectorAll('.node').forEach(node => {
+        const [nameInput, ipInput] = node.querySelectorAll('input');
+        nodes.push({
+          type: node.querySelector('strong').textContent,
+          name: nameInput.value,
+          ip: ipInput.value,
+          left: node.style.left,
+          top: node.style.top,
+          id: node.dataset.id
+        });
+      });
+
+      const connectionData = connections.map(([a, b]) => ({
+        from: a.dataset.id,
+        to: b.dataset.id
+      }));
+
+      fetch('/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ nodes, connections: connectionData })
+      }).then(res => {
+        if (res.ok) alert("✅ Layout saved!");
+        else alert("❌ Save failed");
+      });
+    }
+
+    window.onload = async function () {
+      const config = await fetch('/config').then(r => r.json());
+      const palette = document.getElementById('palette');
+      config.types.forEach(type => palette.appendChild(createPaletteItem(type)));
+
+      const data = await fetch('/layout').then(r => r.json());
+      const nodeMap = {};
+      data.nodes?.forEach(n => {
+        const node = createNode(n);
+        nodeMap[n.id] = node;
+      });
+      data.connections?.forEach(link => {
+        const from = nodeMap[link.from];
+        const to = nodeMap[link.to];
+        if (from && to) connections.push([from, to]);
+      });
+      drawConnections();
+    };
+  </script>
+</body>
+</html>

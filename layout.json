@@ -1,0 +1,38 @@
+{
+  "nodes": [
+    {
+      "type": "Switch",
+      "name": "asd",
+      "ip": "13.12.31.3",
+      "left": "444px",
+      "top": "254px",
+      "id": "f243db39-43f0-41d8-bf6f-262065ae3032"
+    },
+    {
+      "type": "PC",
+      "name": "gqqg",
+      "ip": "13.13.13.1",
+      "left": "371px",
+      "top": "573px",
+      "id": "ec62bebf-b487-4df7-bd22-417056a51b07"
+    },
+    {
+      "type": "Proxmox",
+      "name": "pve",
+      "ip": "192.168.1.20",
+      "left": "879px",
+      "top": "275px",
+      "id": "3b7b8ef0-a2f7-46bc-906d-e037bf577a73"
+    }
+  ],
+  "connections": [
+    {
+      "from": "f243db39-43f0-41d8-bf6f-262065ae3032",
+      "to": "ec62bebf-b487-4df7-bd22-417056a51b07"
+    },
+    {
+      "from": "f243db39-43f0-41d8-bf6f-262065ae3032",
+      "to": "3b7b8ef0-a2f7-46bc-906d-e037bf577a73"
+    }
+  ]
+}
