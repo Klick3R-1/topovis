@@ -26,7 +26,7 @@
 1. Clone this repo:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/topovis.git
+git clone https://github.com/Klick3R-1/topovis.git
 cd topovis
 ```
 
