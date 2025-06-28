@@ -3,7 +3,7 @@
 **TopoVis** is a simple, dark-themed, drag-and-drop web application for visualizing and editing network topologies. Built with Node.js and Express.
 
 > ✅ Easily extensible, self-hosted, no dependencies beyond Express. You own the tool.
-![image](https://github.com/user-attachments/assets/4b033b5e-215b-48f7-9e04-5430f4702c32)
+![image](https://github.com/user-attachments/assets/5f561a74-357a-466d-80c5-44ec3d9eb632)
 
 ---
 
