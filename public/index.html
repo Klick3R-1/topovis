@@ -26,7 +26,7 @@
       position: absolute;
       top: 0;
       left: 0;
-      z-index: 0;
+      z-index: 1;
       pointer-events: auto;
     }
     #canvas {
@@ -35,7 +35,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      z-index: 1;
+      z-index: 2;
     }
     .node {
       width: 120px;
@@ -46,7 +46,7 @@
       color: #eee;
       position: absolute;
       cursor: move;
-      z-index: 2;
+      z-index: 3;
     }
     .palette-item {
       margin: 10px 0;
@@ -98,7 +98,7 @@
   </div>
 
   <div id="canvas-container">
-    <canvas id="line-canvas" width="2000" height="2000"></canvas>
+    <canvas id="line-canvas" width="3000" height="3000"></canvas>
     <div id="canvas" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
   </div>
 
@@ -162,11 +162,59 @@
         ctx.beginPath();
         ctx.moveTo(posA.x, posA.y);
         ctx.lineTo(posB.x, posB.y);
-        ctx.strokeStyle = '#000';
+        ctx.strokeStyle = '#3399ff';
         ctx.lineWidth = 2;
         ctx.stroke();
       });
     }
+
+    function distanceToSegment(px, py, x1, y1, x2, y2) {
+      const A = px - x1;
+      const B = py - y1;
+      const C = x2 - x1;
+      const D = y2 - y1;
+
+      const dot = A * C + B * D;
+      const lenSq = C * C + D * D;
+      let param = -1;
+      if (lenSq !== 0) param = dot / lenSq;
+
+      let xx, yy;
+      if (param < 0) {
+        xx = x1;
+        yy = y1;
+      } else if (param > 1) {
+        xx = x2;
+        yy = y2;
+      } else {
+        xx = x1 + param * C;
+        yy = y1 + param * D;
+      }
+
+      const dx = px - xx;
+      const dy = py - yy;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    lineCanvas.addEventListener('click', (e) => {
+      if (!removeMode) return;
+      const rect = lineCanvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      const tolerance = 5;
+      for (let i = 0; i < connections.length; i++) {
+        const [a, b] = connections[i];
+        const posA = getCenter(a);
+        const posB = getCenter(b);
+        const dist = distanceToSegment(clickX, clickY, posA.x, posA.y, posB.x, posB.y);
+        if (dist <= tolerance) {
+          connections.splice(i, 1);
+          drawConnections();
+          break;
+        }
+      }
+    });
 
     function createNode(data) {
       const node = document.createElement('div');
