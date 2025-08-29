@@ -24,6 +24,9 @@
 - 👤 **User Sharing**: Grant specific users access to your networks
 - 🎯 **Owner Protection**: Network owners are automatically included in shared access
 - 🚀 **Enhanced UI/UX**: Improved modal system, better error handling, and responsive design
+- 🔧 **Database-Driven Node Types**: Intelligent node type management with user isolation
+- 📈 **Type Promotion System**: Promote user types to system-wide admin types
+- 🔄 **Intelligent Merging**: Automatic consolidation of duplicate types during promotion
 
 ---
 
@@ -64,6 +67,7 @@
 - **User Management**: Create, edit, delete users and reset passwords
 - **System Statistics**: Overview of users, networks, and system usage
 - **Network Ownership**: Users can only access their own networks (admins see all)
+- **Device Type Management**: Comprehensive node type administration with promotion system
 
 ---
 
@@ -117,6 +121,8 @@ The application automatically creates the following tables:
 - **networks**: Network definitions and metadata
 - **nodes**: Network devices with positions and properties
 - **connections**: Links between network nodes
+- **network_access**: Network access control and sharing permissions
+- **node_types**: Device type definitions with isolation and promotion support
 
 ---
 
@@ -142,12 +148,15 @@ The application automatically creates the following tables:
 ## 🔧 Configuration
 
 ### Node Types
-Edit device types in the Settings page or modify `config.json`:
-```json
-{
-  "types": ["Router", "Switch", "PC", "Firewall", "Server"]
-}
-```
+Device types are now managed through the database with intelligent isolation:
+
+- **Settings Page**: Users can add/remove their own custom types
+- **Admin Panel**: Admins can create system-wide types and promote user types
+- **Automatic Isolation**: Users can create types with same names (isolated per user)
+- **Type Promotion**: Useful user types can be promoted to system-wide types
+- **Smart Merging**: Duplicate types are automatically consolidated during promotion
+
+> **Note**: The old `config.json` file has been replaced with a robust database-driven system.
 
 ### Environment Variables
 - `PORT`: Server port (default: 3000)
@@ -175,6 +184,14 @@ Edit device types in the Settings page or modify `config.json`:
 - `GET /networks/:id/access` - Get network access settings
 - `PUT /networks/:id/access` - Update network access settings
 - `GET /users` - List users for network sharing (filtered by role)
+
+### Node Type Management
+- `GET /config` - Get node types (filtered by user permissions)
+- `POST /config` - Create user-specific node type
+- `DELETE /config/:typeId` - Delete node type (with permission checks)
+- `POST /admin/config` - Create admin-level node type
+- `GET /admin/config/user-types` - Get all user types available for promotion
+- `POST /admin/config/:typeId/promote` - Promote user type to admin level (with automatic merging)
 
 ### Admin (Admin only)
 - `GET /admin/users` - List all users
@@ -229,6 +246,38 @@ topovis/
 ├── config.json         # Node type configuration
 └── package.json        # Dependencies and scripts
 ```
+
+---
+
+## 🔧 Node Type Management
+
+TopoVis v2.0.0 introduces a sophisticated, database-driven node type management system that provides intelligent type isolation and promotion capabilities.
+
+### Type Categories
+
+- **🔒 Default Types**: System-provided types (Router, Switch, PC, etc.) - cannot be deleted
+- **⭐ Admin Types**: System-wide types created by administrators - visible to all users
+- **👤 User Types**: Custom types created by individual users - isolated per user
+
+### Intelligent Type Isolation
+
+- **User Privacy**: Users can only see default types, admin types, and their own custom types
+- **Admin Visibility**: Admins see default types, admin types, and their own types (not other users')
+- **No Conflicts**: Users can create types with the same names as other users (isolated)
+
+### Type Promotion System
+
+- **📈 Promotion Interface**: Admin panel dropdown for selecting user types to promote
+- **🔄 Automatic Merging**: When promoting a type, all duplicates with the same name are automatically merged
+- **🎯 Smart Consolidation**: Nodes using duplicate types are updated to use the promoted type
+- **💾 Data Integrity**: Transaction-based operations ensure safe promotion and merging
+
+### Admin Panel Features
+
+- **Device Types Manager**: View and manage all system types with category badges
+- **Promotion Controls**: Dropdown interface for selecting user types to promote
+- **Type Creation**: Create new admin-level types for system-wide use
+- **Visual Indicators**: Color-coded badges (Default, Admin, Custom) for easy identification
 
 ---
 
@@ -307,6 +356,9 @@ Check browser console for detailed error messages and Alpine.js component state.
 - **Import/Export**: JSON-based network sharing
 - **Admin Panel**: Comprehensive user and system management
 - **Role-Based Access Control**: Admin, User, and Read-only roles
+- **Database-Driven Node Types**: Intelligent type management with user isolation
+- **Type Promotion System**: Promote user types to system-wide admin types
+- **Intelligent Merging**: Automatic consolidation of duplicate types during promotion
 
 #### 🔧 Improvements
 - **SQLite Database**: Persistent storage replacing file-based system
@@ -314,18 +366,28 @@ Check browser console for detailed error messages and Alpine.js component state.
 - **Enhanced Modals**: Improved user experience with better modal system
 - **Owner Protection**: Automatic inclusion of network owners in shared access
 - **Real-time Updates**: Immediate feedback on all operations
+- **Node Type Isolation**: Users can create types with same names (isolated per user)
+- **Admin Type Management**: System-wide type creation and management
+- **Promotion Interface**: Dropdown-based type promotion system
 
 #### 🐛 Bug Fixes
 - **Modal Display Issues**: Fixed modal visibility and state management
 - **Network Access**: Resolved 404 errors for shared network access
 - **User Management**: Fixed admin panel functionality and user operations
 - **Template Networks**: Fixed connection creation in template networks
+- **Node Type Conflicts**: Resolved 409 conflicts for user type creation
+- **Admin Type Visibility**: Fixed admin seeing other users' custom types
+- **Type Promotion Errors**: Resolved undefined variable errors in promotion system
 
 #### 🚀 Technical Improvements
 - **Backend Architecture**: Modular Express.js backend with middleware
 - **Database Schema**: Proper relational database design
 - **Security**: bcrypt password hashing and session management
 - **Error Handling**: Comprehensive error handling and user feedback
+- **Node Type System**: Database-driven type management with proper isolation
+- **Transaction Safety**: Database transactions for type promotion and merging
+- **Intelligent Merging**: Automatic duplicate detection and consolidation
+- **Permission System**: Granular type management permissions
 
 ---
 

@@ -13,7 +13,6 @@ const USERNAME = 'admin';
 const PASSWORD = 'secret';
 
 const publicPath = path.join(__dirname, 'public');
-const configPath = path.join(__dirname, 'config.json');
 const dbPath = path.join(__dirname, 'database', 'topovis.db');
 
 // Ensure database directory exists
@@ -85,10 +84,38 @@ db.serialize(() => {
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
   )`);
   
+  // Create node_types table for managing node categories
+  db.run(`CREATE TABLE IF NOT EXISTS node_types (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    is_default BOOLEAN DEFAULT 0,
+    is_admin BOOLEAN DEFAULT 0,
+    user_id TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+  )`);
+  
   // Insert default admin user if not exists
   const hashedPassword = bcrypt.hashSync(PASSWORD, 10);
   db.run(`INSERT OR IGNORE INTO users (id, username, password, role, email) VALUES (?, ?, ?, ?, ?)`, 
     ['admin-1', USERNAME, hashedPassword, 'admin', 'admin@topovis.local']);
+  
+  // Insert default node types if not exists
+  const defaultTypes = [
+    { id: 'type-router', name: 'Router', is_default: 1, is_admin: 0 },
+    { id: 'type-switch', name: 'Switch', is_default: 1, is_admin: 0 },
+    { id: 'type-pc', name: 'PC', is_default: 1, is_admin: 0 },
+    { id: 'type-server', name: 'Server', is_default: 1, is_admin: 0 },
+    { id: 'type-firewall', name: 'Firewall', is_default: 1, is_admin: 0 },
+    { id: 'type-loadbalancer', name: 'Load Balancer', is_default: 1, is_admin: 0 },
+    { id: 'type-database', name: 'Database', is_default: 1, is_admin: 0 },
+    { id: 'type-proxmox', name: 'Proxmox', is_default: 1, is_admin: 0 }
+  ];
+  
+  defaultTypes.forEach(type => {
+    db.run(`INSERT OR IGNORE INTO node_types (id, name, is_default, is_admin) VALUES (?, ?, ?, ?)`, 
+      [type.id, type.name, type.is_default, type.is_admin]);
+  });
 });
 
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -848,23 +875,298 @@ app.post('/admin/users/:id/reset-password', requireAdmin, async (req, res) => {
   }
 });
 
-// Legacy endpoints for backward compatibility
+// Node type management endpoints
 app.get('/config', requireAuth, (req, res) => {
-  if (fs.existsSync(configPath)) {
-    res.type('json').send(fs.readFileSync(configPath));
-  } else {
-    res.json({ types: ["Router", "Switch", "PC"] });
-  }
+  // Get user role to determine what types they can see
+  db.get('SELECT role FROM users WHERE id = ?', [req.session.userId], (err, user) => {
+    if (err || !user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+    
+    let query;
+    let params = [];
+    
+    if (user.role === 'admin') {
+      // Admin sees default types, admin-created types, and their own types (not other users' types)
+      query = 'SELECT * FROM node_types WHERE is_default = 1 OR is_admin = 1 OR user_id = ? ORDER BY is_default DESC, is_admin DESC, name ASC';
+      params = [req.session.userId];
+    } else {
+      // Regular users see default types, admin-created types, and their own types
+      query = 'SELECT * FROM node_types WHERE is_default = 1 OR is_admin = 1 OR user_id = ? ORDER BY is_default DESC, is_admin DESC, name ASC';
+      params = [req.session.userId];
+    }
+    
+    db.all(query, params, (err, types) => {
+      if (err) {
+        console.error('❌ Failed to fetch node types:', err);
+        return res.status(500).json({ error: 'Failed to fetch node types' });
+      }
+      
+      // Format response for backward compatibility
+      const typeNames = types.map(t => t.name);
+      res.json({ types: typeNames, fullTypes: types });
+    });
+  });
 });
 
 app.post('/config', requireAuth, (req, res) => {
-  try {
-    fs.writeFileSync(configPath, JSON.stringify(req.body, null, 2));
-    res.sendStatus(200);
-  } catch (err) {
-    console.error('❌ Failed to save config:', err);
-    res.status(500).send('Failed to save config');
+  const { name } = req.body;
+  
+  if (!name || typeof name !== 'string' || name.trim().length === 0) {
+    return res.status(400).json({ error: 'Node type name is required' });
   }
+  
+  const trimmedName = name.trim();
+  
+  // Check if name already exists for this user (case-insensitive)
+  db.get('SELECT id FROM node_types WHERE LOWER(name) = LOWER(?) AND user_id = ?', [trimmedName, req.session.userId], (err, existing) => {
+    if (err) {
+      console.error('❌ Database error checking existing type:', err);
+      return res.status(500).json({ error: 'Database error' });
+    }
+    
+    if (existing) {
+      return res.status(409).json({ error: 'You already have a device type with this name' });
+    }
+    
+    // Create new node type
+    const typeId = `type-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    db.run('INSERT INTO node_types (id, name, is_admin, user_id) VALUES (?, ?, ?, ?)', 
+      [typeId, trimmedName, 0, req.session.userId], function(err) {
+      if (err) {
+        console.error('❌ Failed to create node type:', err);
+        return res.status(500).json({ error: 'Failed to create node type' });
+      }
+      
+      res.json({ 
+        success: true, 
+        message: 'Node type created successfully',
+        type: { id: typeId, name: trimmedName, is_admin: 0, user_id: req.session.userId }
+      });
+    });
+  });
+});
+
+// Admin endpoint for creating admin-level node types
+app.post('/admin/config', requireAuth, requireRole(['admin']), (req, res) => {
+  const { name } = req.body;
+  
+  if (!name || typeof name !== 'string' || name.trim().length === 0) {
+    return res.status(400).json({ error: 'Node type name is required' });
+  }
+  
+  const trimmedName = name.trim();
+  
+  // Check if name already exists globally for admin types (case-insensitive)
+  db.get('SELECT id, is_admin, user_id FROM node_types WHERE LOWER(name) = LOWER(?)', [trimmedName], (err, existing) => {
+    if (err) {
+      console.error('❌ Database error checking existing type:', err);
+      return res.status(500).json({ error: 'Database error' });
+    }
+    
+    if (existing) {
+      if (existing.is_admin) {
+        return res.status(409).json({ error: 'An admin device type with this name already exists' });
+      } else if (existing.user_id) {
+        return res.status(409).json({ 
+          error: `A user device type with this name already exists. Consider promoting the existing type to admin level or using a different name.`,
+          existingType: { id: existing.id, name: existing.name, is_admin: existing.is_admin, user_id: existing.user_id }
+        });
+      } else {
+        return res.status(409).json({ error: 'A default device type with this name already exists' });
+      }
+    }
+    
+    // Create new admin-level node type
+    const typeId = `type-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    db.run('INSERT INTO node_types (id, name, is_admin, user_id) VALUES (?, ?, ?, ?)', 
+      [typeId, trimmedName, 1, null], function(err) {
+      if (err) {
+        console.error('❌ Failed to create admin node type:', err);
+        return res.status(500).json({ error: 'Failed to create admin node type' });
+      }
+      
+      res.json({ 
+        success: true, 
+        message: 'Admin node type created successfully',
+        type: { id: typeId, name: trimmedName, is_admin: 1, user_id: null }
+      });
+    });
+  });
+});
+
+// Admin endpoint for getting all user types that can be promoted
+app.get('/admin/config/user-types', requireAuth, requireRole(['admin']), (req, res) => {
+  // Get all user-created types that are not default or admin
+  db.all('SELECT nt.*, u.username FROM node_types nt LEFT JOIN users u ON nt.user_id = u.id WHERE nt.is_default = 0 AND nt.is_admin = 0 AND nt.user_id IS NOT NULL ORDER BY nt.name ASC', (err, userTypes) => {
+    if (err) {
+      console.error('❌ Database error fetching user types:', err);
+      return res.status(500).json({ error: 'Database error' });
+    }
+    
+    res.json(userTypes);
+  });
+});
+
+// Admin endpoint for promoting user types to admin types
+app.post('/admin/config/:typeId/promote', requireAuth, requireRole(['admin']), (req, res) => {
+  const { typeId } = req.params;
+  
+  // Get the node type details
+  db.get('SELECT * FROM node_types WHERE id = ?', [typeId], (err, nodeType) => {
+    if (err) {
+      console.error('❌ Database error fetching node type:', err);
+      return res.status(500).json({ error: 'Database error' });
+    }
+    
+    if (!nodeType) {
+      return res.status(404).json({ error: 'Node type not found' });
+    }
+    
+    // Check if it's a user type that can be promoted
+    if (nodeType.is_default) {
+      return res.status(400).json({ error: 'Cannot promote default node types' });
+    }
+    
+    if (nodeType.is_admin) {
+      return res.status(400).json({ error: 'Node type is already an admin type' });
+    }
+    
+    // Start a transaction to handle the promotion and merging
+    db.serialize(() => {
+      // Begin transaction
+      db.run('BEGIN TRANSACTION');
+      
+      try {
+        // First, promote the selected type to admin level
+        db.run('UPDATE node_types SET is_admin = 1, user_id = NULL WHERE id = ?', [typeId], function(err) {
+          if (err) {
+            console.error('❌ Failed to promote node type:', err);
+            db.run('ROLLBACK');
+            return res.status(500).json({ error: 'Failed to promote node type' });
+          }
+          
+          // Find all other user types with the same name (case-insensitive)
+          db.all('SELECT id FROM node_types WHERE LOWER(name) = LOWER(?) AND id != ? AND is_default = 0 AND is_admin = 0 AND user_id IS NOT NULL', 
+            [nodeType.name, typeId], (err, duplicateTypes) => {
+            if (err) {
+              console.error('❌ Database error finding duplicate types:', err);
+              db.run('ROLLBACK');
+              return res.status(500).json({ error: 'Database error finding duplicates' });
+            }
+            
+            if (duplicateTypes.length === 0) {
+              // No duplicates, just commit the promotion
+              db.run('COMMIT', function(err) {
+                if (err) {
+                  console.error('❌ Failed to commit transaction:', err);
+                  return res.status(500).json({ error: 'Failed to commit promotion' });
+                }
+                
+                res.json({ 
+                  success: true, 
+                  message: 'Node type promoted to admin level successfully',
+                  type: { id: typeId, name: nodeType.name, is_admin: 1, user_id: null },
+                  mergedCount: 0
+                });
+              });
+            } else {
+              // We have duplicates to merge, update all nodes using these types
+              const duplicateIds = duplicateTypes.map(t => t.id);
+              const placeholders = duplicateIds.map(() => '?').join(',');
+              
+              // Update all nodes that use the duplicate types to use the promoted type
+              db.run(`UPDATE nodes SET type = ? WHERE type IN (SELECT name FROM node_types WHERE id IN (${placeholders}))`, 
+                [nodeType.name, ...duplicateIds], function(err) {
+                if (err) {
+                  console.error('❌ Failed to update nodes with duplicate types:', err);
+                  db.run('ROLLBACK');
+                  return res.status(500).json({ error: 'Failed to update nodes with duplicate types' });
+                }
+                
+                // Delete the duplicate type definitions
+                db.run(`DELETE FROM node_types WHERE id IN (${placeholders})`, duplicateIds, function(err) {
+                  if (err) {
+                    console.error('❌ Failed to delete duplicate types:', err);
+                    db.run('ROLLBACK');
+                    return res.status(500).json({ error: 'Failed to delete duplicate types' });
+                  }
+                  
+                  // Commit the transaction
+                  db.run('COMMIT', function(err) {
+                    if (err) {
+                      console.error('❌ Failed to commit transaction:', err);
+                      return res.status(500).json({ error: 'Failed to commit promotion' });
+                    }
+                    
+                    res.json({ 
+                      success: true, 
+                      message: `Node type promoted to admin level successfully. Merged ${duplicateTypes.length} duplicate type(s) with the same name.`,
+                      type: { id: typeId, name: nodeType.name, is_admin: 1, user_id: null },
+                      mergedCount: duplicateTypes.length
+                    });
+                  });
+                });
+              });
+            }
+          });
+        });
+      } catch (error) {
+        console.error('❌ Error during promotion transaction:', error);
+        db.run('ROLLBACK');
+        return res.status(500).json({ error: 'Failed to promote node type' });
+      }
+    });
+  });
+});
+
+// New endpoint for deleting node types
+app.delete('/config/:typeId', requireAuth, (req, res) => {
+  const { typeId } = req.params;
+  
+  // Get user role and check if they can delete this type
+  db.get('SELECT role FROM users WHERE id = ?', [req.session.userId], (err, user) => {
+    if (err || !user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+    
+    // Get the node type details
+    db.get('SELECT * FROM node_types WHERE id = ?', [typeId], (err, nodeType) => {
+      if (err) {
+        console.error('❌ Database error fetching node type:', err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      
+      if (!nodeType) {
+        return res.status(404).json({ error: 'Node type not found' });
+      }
+      
+      // Check permissions
+      if (nodeType.is_default) {
+        return res.status(403).json({ error: 'Cannot delete default node types' });
+      }
+      
+      if (nodeType.is_admin && user.role !== 'admin') {
+        return res.status(403).json({ error: 'Cannot delete admin-created node types' });
+      }
+      
+      if (nodeType.user_id && nodeType.user_id !== req.session.userId && user.role !== 'admin') {
+        return res.status(403).json({ error: 'Cannot delete other users\' node types' });
+      }
+      
+      // Delete the node type
+      db.run('DELETE FROM node_types WHERE id = ?', [typeId], function(err) {
+        if (err) {
+          console.error('❌ Failed to delete node type:', err);
+          return res.status(500).json({ error: 'Failed to delete node type' });
+        }
+        
+        res.json({ success: true, message: 'Node type deleted successfully' });
+      });
+    });
+  });
 });
 
 // Template data functions

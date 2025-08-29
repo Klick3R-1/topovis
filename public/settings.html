@@ -107,6 +107,30 @@
     a:hover {
       text-decoration: underline;
     }
+    
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 0.8em;
+      font-weight: bold;
+      margin-left: 8px;
+    }
+    
+    .badge.default {
+      background: #4caf50;
+      color: white;
+    }
+    
+    .badge.admin {
+      background: #2196f3;
+      color: white;
+    }
+    
+    .badge.user {
+      background: #ff9800;
+      color: white;
+    }
   </style>
 </head>
 <body x-data="settingsData()">
@@ -127,12 +151,16 @@
     </form>
     
     <ul id="type-list">
-      <template x-for="(type, index) in nodeTypes" :key="index">
+      <template x-for="type in fullNodeTypes" :key="type.id">
         <li>
-          <span x-text="type"></span>
-          <button x-show="currentUser?.role !== 'readonly'" 
-                  @click="removeNodeType(index)" 
-                  class="delete-btn">🗑️</button>
+          <span x-text="type.name"></span>
+          <span x-show="type.is_default" class="badge default">Default</span>
+          <span x-show="type.is_admin && !type.is_default" class="badge admin">Admin</span>
+          <span x-show="!type.is_default && !type.is_admin" class="badge user">Custom</span>
+          <button x-show="canDeleteType(type)" 
+                  @click="removeNodeType(type.id)" 
+                  class="delete-btn"
+                  :title="getDeleteTooltip(type)">🗑️</button>
         </li>
       </template>
     </ul>
@@ -183,6 +211,7 @@
     function settingsData() {
       return {
         nodeTypes: [],
+        fullNodeTypes: [],
         newNodeType: '',
         message: '',
         messageType: 'success',
@@ -210,6 +239,7 @@
             if (response.ok) {
               const config = await response.json();
               this.nodeTypes = config.types || [];
+              this.fullNodeTypes = config.fullTypes || [];
             }
           } catch (error) {
             console.error('Failed to load node types:', error);
@@ -225,39 +255,66 @@
             return;
           }
           
-          this.nodeTypes.push(this.newNodeType.trim());
-          this.newNodeType = '';
-          await this.saveNodeTypes();
-          this.showMessage('Device type added successfully!', 'success');
+          try {
+            const response = await fetch('/config', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: this.newNodeType.trim() })
+            });
+            
+            if (response.ok) {
+              const result = await response.json();
+              this.newNodeType = '';
+              await this.loadNodeTypes(); // Reload to get updated list
+              this.showMessage('Device type added successfully!', 'success');
+            } else {
+              const error = await response.json();
+              this.showMessage(error.error || 'Failed to add device type', 'error');
+            }
+          } catch (error) {
+            console.error('Failed to add node type:', error);
+            this.showMessage('Failed to add device type', 'error');
+          }
         },
         
-        async removeNodeType(index) {
+        async removeNodeType(typeId) {
           // Check if user can remove types (not readonly)
           if (this.currentUser?.role === 'readonly') {
             this.showMessage('Read-only users cannot remove device types', 'error');
             return;
           }
           
-          this.nodeTypes.splice(index, 1);
-          await this.saveNodeTypes();
-          this.showMessage('Device type removed successfully!', 'success');
-        },
-        
-        async saveNodeTypes() {
           try {
-            const response = await fetch('/config', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ types: this.nodeTypes })
+            const response = await fetch(`/config/${typeId}`, {
+              method: 'DELETE'
             });
             
-            if (!response.ok) {
-              throw new Error('Failed to save');
+            if (response.ok) {
+              await this.loadNodeTypes(); // Reload to get updated list
+              this.showMessage('Device type removed successfully!', 'success');
+            } else {
+              const error = await response.json();
+              this.showMessage(error.error || 'Failed to remove device type', 'error');
             }
           } catch (error) {
-            console.error('Failed to save node types:', error);
-            this.showMessage('Failed to save device types', 'error');
+            console.error('Failed to remove node type:', error);
+            this.showMessage('Failed to remove device type', 'error');
           }
+        },
+        
+        canDeleteType(type) {
+          if (this.currentUser?.role === 'readonly') return false;
+          if (type.is_default) return false;
+          if (type.is_admin && this.currentUser?.role !== 'admin') return false;
+          if (type.user_id && type.user_id !== this.currentUser?.id && this.currentUser?.role !== 'admin') return false;
+          return true;
+        },
+        
+        getDeleteTooltip(type) {
+          if (type.is_default) return 'Default types cannot be deleted';
+          if (type.is_admin && this.currentUser?.role !== 'admin') return 'Admin types can only be deleted by admins';
+          if (type.user_id && type.user_id !== this.currentUser?.id && this.currentUser?.role !== 'admin') return 'You can only delete your own custom types';
+          return 'Click to delete this type';
         },
         
         async createTemplate(templateType) {
