@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Network Editor</title>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <style>
     body { font-family: sans-serif; margin: 0; background: #121212; color: #eee; }
     #sidebar {
@@ -87,14 +88,91 @@
       background: #3c3f44;
     }
     a { color: #66c0f4; }
+    .network-selector {
+      margin-bottom: 1em;
+      padding: 8px;
+      background: #333;
+      border: 1px solid #555;
+      color: #eee;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .warning {
+      background: #ff6b6b;
+      color: white;
+      padding: 8px;
+      margin: 8px 0;
+      border-radius: 4px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
-  <div id="sidebar">
+  <div id="sidebar" x-data="sidebarData()">
     <h3>Palette</h3>
+    
+    <!-- User Info -->
+    <div style="margin-bottom: 1em; padding: 8px; background: #2c2f33; border-radius: 4px;">
+      <div style="font-size: 12px; color: #ccc;">Logged in as:</div>
+      <div x-show="!currentUser" style="color: #999; font-style: italic;">Loading user info...</div>
+      <div x-show="currentUser" style="font-weight: bold;" x-text="currentUser?.username || 'Unknown'"></div>
+      <div x-show="currentUser" style="font-size: 11px; color: #999;" x-text="currentUser?.role || 'Unknown'"></div>
+      
+      <!-- Test button for debugging -->
+      <button x-show="!currentUser" @click="loadUserInfo()" 
+              style="margin-top: 5px; padding: 2px 6px; font-size: 10px; background: #444;">
+        🔄 Reload User Info
+      </button>
+    </div>
+    
+    <!-- Network Selector -->
+    <select x-model="currentNetworkId" @change="switchNetwork($event.target.value)" class="network-selector">
+      <option value="">Select Network</option>
+      <template x-for="network in networks" :key="network.id">
+        <option :value="network.id" x-text="network.name + (network.owner ? ' (' + network.owner + ')' : '')"></option>
+      </template>
+    </select>
+    
+    <!-- Network Actions -->
+    <div x-show="currentNetworkId" style="margin-bottom: 1em;">
+      <button @click="createNewNetwork()" style="width: 100%; margin-bottom: 5px;" 
+              x-show="currentUser?.role !== 'readonly'">➕ New Network</button>
+      <button @click="exportNetwork()" style="width: 100%; margin-bottom: 5px;">📤 Export</button>
+      <button @click="importNetwork()" style="width: 100%; margin-bottom: 5px;" 
+              x-show="currentUser?.role !== 'readonly'">📥 Import</button>
+      <button @click="deleteNetwork()" style="width: 100%; margin-bottom: 5px; background: #ff6b6b;" 
+              x-show="canEditNetwork()">🗑️ Delete</button>
+    </div>
+    
     <div id="palette"></div>
-    <p><a href="/logout">Logout</a></p>
-    <p><a href="/settings">⚙️ Settings</a></p>
+    
+    <!-- Navigation Links -->
+    <div style="margin-top: 1em; padding-top: 1em; border-top: 1px solid #333;">
+      <p><a href="/settings">⚙️ Settings</a></p>
+      <p x-show="currentUser?.role === 'admin'">
+        <a href="/admin">🔐 Admin Panel</a>
+        <span style="font-size: 10px; color: #666;">(Admin only)</span>
+      </p>
+      <p><a href="/logout">🚪 Logout</a></p>
+    </div>
+    
+    <!-- Controls Section (moved inside sidebar to access currentUser) -->
+    <div id="controls" style="position: fixed; bottom: 10px; left: 220px; z-index: 9999; background: #1c1c1c; padding: 6px; border: 1px solid #444; color: #eee;">
+      <button @click="saveLayout()" x-show="currentUser?.role !== 'readonly'">💾 Save Layout</button>
+      <button @click="removeMode = !removeMode" x-show="currentUser?.role !== 'readonly'">
+        🗑️ Remove Mode: <span x-text="removeMode ? 'ON' : 'OFF'"></span>
+      </button>
+      
+      <!-- Warning when remove mode is active -->
+      <div x-show="removeMode" class="warning">
+        ⚠️ Remove mode is active - click nodes/connections to delete
+      </div>
+      
+      <!-- Readonly notice -->
+      <div x-show="currentUser?.role === 'readonly'" class="warning" style="background: #ffa726; color: black;">
+        👁️ Read-only mode - You can view but not edit networks
+      </div>
+    </div>
   </div>
 
   <div id="canvas-container">
@@ -102,24 +180,350 @@
     <div id="canvas" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
   </div>
 
-  <div id="controls">
-    <button onclick="saveLayout()">💾 Save Layout</button>
-    <button onclick="toggleRemoveMode()">🗑️ Remove Mode: <span id="remove-state">OFF</span></button>
-  </div>
-
   <script>
+    // Alpine.js data and functions
+    function sidebarData() {
+      return {
+        networks: [],
+        currentNetworkId: '',
+        currentUser: null,
+        removeMode: false,
+        async init() {
+          console.log('🔄 Initializing sidebar data...');
+          await this.loadNetworks();
+          await this.loadUserInfo();
+          // Load current network if available
+          const urlParams = new URLSearchParams(window.location.search);
+          const networkId = urlParams.get('network');
+          if (networkId) {
+            this.currentNetworkId = networkId;
+            this.switchNetwork(networkId);
+          }
+          console.log('✅ Sidebar initialization complete. Current user:', this.currentUser);
+          
+          // Set global flag that component is ready
+          alpineComponentReady = true;
+          console.log('✅ Alpine.js component marked as ready');
+          
+          // Update global variables
+          this.updateGlobalVariables();
+          
+          // Set up watchers to keep global variables in sync
+          this.$watch('currentUser', () => this.updateGlobalVariables());
+          this.$watch('currentNetworkId', () => this.updateGlobalVariables());
+          this.$watch('removeMode', () => this.updateGlobalVariables());
+        },
+        
+        updateGlobalVariables() {
+          currentUserGlobal = this.currentUser;
+          currentNetworkIdGlobal = this.currentNetworkId;
+          removeModeGlobal = this.removeMode;
+          console.log('Global variables updated:', { currentUserGlobal, currentNetworkIdGlobal, removeModeGlobal });
+        },
+        
+        async loadNetworks() {
+          try {
+            const response = await fetch('/networks');
+            if (response.ok) {
+              this.networks = await response.json();
+            }
+          } catch (error) {
+            console.error('Failed to load networks:', error);
+          }
+        },
+        
+        async loadUserInfo() {
+          try {
+            const response = await fetch('/user/info');
+            if (response.ok) {
+              this.currentUser = await response.json();
+              console.log('User info loaded:', this.currentUser);
+            }
+          } catch (error) {
+            console.error('Failed to load user info:', error);
+          }
+        },
+        
+        async switchNetwork(networkId) {
+          if (!networkId) return;
+          this.currentNetworkId = networkId;
+          console.log('Switching to network:', networkId);
+          // Reload canvas with new network
+          await window.loadNetworkData(networkId);
+        },
+        
+        async createNewNetwork() {
+          const name = prompt('Enter network name:');
+          if (!name) return;
+          
+          try {
+            const response = await fetch('/networks', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin',
+              body: JSON.stringify({ name, type: 'custom' })
+            });
+            
+            if (response.ok) {
+              const network = await response.json();
+              this.networks.push(network);
+              this.currentNetworkId = network.id;
+              // Clear canvas for new network
+              document.getElementById('canvas').innerHTML = '';
+              connections.length = 0;
+              drawConnections();
+              // Load the new network
+              this.switchNetwork(network.id);
+            }
+          } catch (error) {
+            alert('Failed to create network: ' + error.message);
+          }
+        },
+        
+        async exportNetwork() {
+          if (!this.currentNetworkId) return;
+          
+          try {
+            const response = await fetch(`/networks/${this.currentNetworkId}/export`);
+            if (response.ok) {
+              const data = await response.json();
+              
+              // Create and download file
+              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `${data.network.name}.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+              
+              alert('✅ Network exported successfully!');
+            } else {
+              alert('❌ Export failed');
+            }
+          } catch (error) {
+            alert('❌ Export error: ' + error.message);
+          }
+        },
+        
+        async deleteNetwork() {
+          if (!this.currentNetworkId) return;
+          
+          if (!confirm('Are you sure you want to delete this network?')) return;
+          
+          try {
+            const response = await fetch(`/networks/${this.currentNetworkId}`, {
+              method: 'DELETE',
+              credentials: 'same-origin'
+            });
+            
+            if (response.ok) {
+              this.networks = this.networks.filter(n => n.id !== this.currentNetworkId);
+              this.currentNetworkId = '';
+              // Clear canvas
+              document.getElementById('canvas').innerHTML = '';
+              connections.length = 0;
+              drawConnections();
+            }
+          } catch (error) {
+            alert('Failed to delete network: ' + error.message);
+          }
+        },
+        
+        async importNetwork() {
+          if (!this.currentNetworkId) return;
+          
+          // Create file input
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = '.json';
+          input.style.display = 'none';
+          
+          input.onchange = async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            try {
+              const text = await file.text();
+              const importData = JSON.parse(text);
+              
+              if (!importData.network || !importData.network.nodes) {
+                alert('❌ Invalid network file format');
+                return;
+              }
+              
+              // Clear existing canvas
+              document.getElementById('canvas').innerHTML = '';
+              connections.length = 0;
+              
+              // Import nodes
+              const nodeMap = {};
+              importData.network.nodes.forEach(nodeData => {
+                const node = createNode({
+                  type: nodeData.type,
+                  name: nodeData.name || '',
+                  ip: nodeData.ip || '',
+                  left: nodeData.x + 'px',
+                  top: nodeData.y + 'px',
+                  id: nodeData.id || crypto.randomUUID()
+                });
+                nodeMap[nodeData.id] = node;
+              });
+              
+              // Import connections
+              importData.network.connections.forEach(link => {
+                const from = nodeMap[link.from];
+                const to = nodeMap[link.to];
+                if (from && to) {
+                  connections.push([from, to]);
+                }
+              });
+              
+              drawConnections();
+              alert('✅ Network imported successfully!');
+              
+            } catch (error) {
+              alert('❌ Import error: ' + error.message);
+            }
+            
+            // Clean up
+            document.body.removeChild(input);
+          };
+          
+          document.body.appendChild(input);
+          input.click();
+        },
+        
+        canEditNetwork() {
+          return this.currentUser?.role === 'admin' || 
+                 this.currentUser?.id === this.networks.find(n => n.id === this.currentNetworkId)?.user_id;
+        },
+        
+        async saveLayout() {
+          // Check if component is ready
+          if (!isComponentReady()) {
+            alert('System not ready. Please wait for page to load completely.');
+            return;
+          }
+          
+          // Use global variables
+          if (!currentUserGlobal) {
+            alert('User not loaded. Please wait for page to load completely.');
+            return;
+          }
+          
+          if (!currentNetworkIdGlobal) {
+            alert('Please select a network first');
+            return;
+          }
+          
+          // Check if user can edit (not readonly)
+          if (currentUserGlobal.role === 'readonly') {
+            alert('Read-only users cannot save networks');
+            return;
+          }
+
+          const nodes = [];
+          document.querySelectorAll('.node').forEach(node => {
+            const [nameInput, ipInput] = node.querySelectorAll('input');
+            nodes.push({
+              type: node.querySelector('strong').textContent,
+              name: nameInput.value,
+              ip: ipInput.value,
+              left: node.style.left,
+              top: node.style.top,
+              id: node.dataset.id
+            });
+          });
+
+          const connectionData = connections.map(([a, b]) => ({
+            from: a.dataset.id,
+            to: b.dataset.id,
+            type: 'ethernet'
+          }));
+
+          try {
+            const response = await fetch(`/networks/${currentNetworkIdGlobal}/save`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin',
+              body: JSON.stringify({ nodes, connections: connectionData })
+            });
+            
+            if (response.ok) {
+              alert("✅ Layout saved!");
+            } else {
+              alert("❌ Save failed");
+            }
+          } catch (error) {
+            alert("❌ Save error: " + error.message);
+          }
+        }
+      }
+    }
+
+    // Global flag to track when Alpine.js component is ready
+    let alpineComponentReady = false;
+    
+    // Global variables for easier access
+    let currentUserGlobal = null;
+    let currentNetworkIdGlobal = '';
+    let removeModeGlobal = false;
+    
+    // Simple helper to check if component is ready
+    function isComponentReady() {
+      return alpineComponentReady;
+    }
+    
+    // Helper function to safely get sidebar component data with retry
+    function getSidebarData(maxRetries = 3, delay = 100) {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        const sidebarElement = document.querySelector('#sidebar');
+        if (!sidebarElement) {
+          if (attempt === maxRetries) {
+            console.log('Sidebar element not found after', maxRetries, 'attempts');
+            return null;
+          }
+          continue;
+        }
+        
+        // Check for different Alpine.js component properties
+        let componentData = null;
+        if (sidebarElement.__x) {
+          componentData = sidebarElement.__x.$data;
+        } else if (sidebarElement._x_dataStack) {
+          componentData = sidebarElement._x_dataStack[0];
+        } else if (sidebarElement._x) {
+          componentData = sidebarElement._x.$data;
+        }
+        
+        if (!componentData) {
+          if (attempt === maxRetries) {
+            console.log('Alpine.js component data not available after', maxRetries, 'attempts');
+            console.log('Element properties:', Object.keys(sidebarElement));
+            console.log('__x:', sidebarElement.__x);
+            console.log('_x_dataStack:', sidebarElement._x_dataStack);
+            console.log('_x:', sidebarElement._x);
+            return null;
+          }
+          // Wait a bit before retrying
+          return new Promise(resolve => {
+            setTimeout(() => resolve(getSidebarData(maxRetries - attempt, delay)), delay);
+          });
+        }
+        
+        return componentData;
+      }
+      return null;
+    }
+
+    // Canvas functionality (keeping your existing code)
     const canvas = document.getElementById('canvas');
     const lineCanvas = document.getElementById('line-canvas');
     const ctx = lineCanvas.getContext('2d');
 
     const connections = [];
     let selectedNode = null;
-    let removeMode = false;
-
-    function toggleRemoveMode() {
-      removeMode = !removeMode;
-      document.getElementById('remove-state').textContent = removeMode ? 'ON' : 'OFF';
-    }
 
     function allowDrop(ev) {
       ev.preventDefault();
@@ -197,7 +601,26 @@
     }
 
     lineCanvas.addEventListener('click', (e) => {
-      if (!removeMode) return;
+      // Check if Alpine.js component is ready
+      if (!isComponentReady()) {
+        console.log('Component not ready, operation cancelled');
+        return;
+      }
+      
+      // Use global variables instead of trying to access component
+      if (!removeModeGlobal) return;
+      
+      // Check if user can delete (not readonly)
+      if (!currentUserGlobal) {
+        console.log('User data not available, operation cancelled');
+        return;
+      }
+      
+      if (currentUserGlobal.role === 'readonly') {
+        alert('Read-only users cannot delete connections');
+        return;
+      }
+      
       const rect = lineCanvas.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const clickY = e.clientY - rect.top;
@@ -232,18 +655,54 @@
       node.dataset.id = data.id || crypto.randomUUID();
 
       node.onclick = function(e) {
-        if (removeMode) {
-          connections.forEach((pair, idx) => {
-            if (pair[0] === node || pair[1] === node) connections.splice(idx, 1);
-          });
-          node.remove();
-          drawConnections();
+        // Check if Alpine.js component is ready
+        if (!isComponentReady()) {
+          console.log('Component not ready, operation cancelled');
           return;
         }
+        
+        // Use global variables instead of trying to access component
+        if (!removeModeGlobal) return;
+        
+        // Check if user can delete (not readonly)
+        if (!currentUserGlobal) {
+          console.log('User data not available, operation cancelled');
+          return;
+        }
+        
+        if (currentUserGlobal.role === 'readonly') {
+          alert('Read-only users cannot delete nodes');
+          return;
+        }
+        
+        connections.forEach((pair, idx) => {
+          if (pair[0] === node || pair[1] === node) connections.splice(idx, 1);
+        });
+        node.remove();
+        drawConnections();
+        return;
       };
 
       node.onmousedown = function(e) {
-        if (removeMode) return;
+        // Check if Alpine.js component is ready
+        if (!isComponentReady()) {
+          console.log('Component not ready, operation cancelled');
+          return;
+        }
+        
+        // Use global variables instead of trying to access component
+        if (removeModeGlobal) return;
+        
+        // Check if user can edit (not readonly)
+        if (!currentUserGlobal) {
+          console.log('User data not available, operation cancelled');
+          return;
+        }
+        
+        if (currentUserGlobal.role === 'readonly') {
+          alert('Read-only users cannot move nodes');
+          return;
+        }
 
         if (e.shiftKey) {
           if (selectedNode && selectedNode !== node) {
@@ -277,6 +736,24 @@
 
     function drop(ev) {
       ev.preventDefault();
+      
+      // Check if Alpine.js component is ready
+      if (!isComponentReady()) {
+        console.log('Component not ready, operation cancelled');
+        return;
+      }
+      
+      // Check if user can edit (not readonly)
+      if (!currentUserGlobal) {
+        console.log('User data not available, operation cancelled');
+        return;
+      }
+      
+      if (currentUserGlobal.role === 'readonly') {
+        alert('Read-only users cannot add new nodes');
+        return;
+      }
+      
       const type = ev.dataTransfer.getData("text/plain");
       const nodeData = {
         type,
@@ -288,53 +765,52 @@
       createNode(nodeData);
     }
 
-    function saveLayout() {
-      const nodes = [];
-      document.querySelectorAll('.node').forEach(node => {
-        const [nameInput, ipInput] = node.querySelectorAll('input');
-        nodes.push({
-          type: node.querySelector('strong').textContent,
-          name: nameInput.value,
-          ip: ipInput.value,
-          left: node.style.left,
-          top: node.style.top,
-          id: node.dataset.id
-        });
-      });
-
-      const connectionData = connections.map(([a, b]) => ({
-        from: a.dataset.id,
-        to: b.dataset.id
-      }));
-
-      fetch('/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ nodes, connections: connectionData })
-      }).then(res => {
-        if (res.ok) alert("✅ Layout saved!");
-        else alert("❌ Save failed");
-      });
-    }
+    // Global function to load network data
+    window.loadNetworkData = async function(networkId) {
+      try {
+        const response = await fetch(`/networks/${networkId}/layout`);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('📥 Network data loaded:', data);
+          
+          // Clear existing canvas
+          canvas.innerHTML = '';
+          connections.length = 0;
+          
+          const nodeMap = {};
+          data.nodes?.forEach(n => {
+            const node = createNode(n);
+            nodeMap[n.id] = node;
+            console.log(`Created node: ${n.id} -> ${node}`);
+          });
+          
+          console.log('Node map:', nodeMap);
+          
+          data.connections?.forEach(link => {
+            console.log(`Processing connection: ${link.from} -> ${link.to}`);
+            const from = nodeMap[link.from];
+            const to = nodeMap[link.to];
+            if (from && to) {
+              connections.push([from, to]);
+              console.log(`Added connection: ${from} -> ${to}`);
+            } else {
+              console.error(`Failed to create connection: from=${link.from}, to=${link.to}`);
+              console.error(`Available nodes:`, Object.keys(nodeMap));
+            }
+          });
+          
+          console.log('Final connections array:', connections);
+          drawConnections();
+        }
+      } catch (error) {
+        console.error('Failed to load network:', error);
+      }
+    };
 
     window.onload = async function () {
       const config = await fetch('/config').then(r => r.json());
       const palette = document.getElementById('palette');
       config.types.forEach(type => palette.appendChild(createPaletteItem(type)));
-
-      const data = await fetch('/layout').then(r => r.json());
-      const nodeMap = {};
-      data.nodes?.forEach(n => {
-        const node = createNode(n);
-        nodeMap[n.id] = node;
-      });
-      data.connections?.forEach(link => {
-        const from = nodeMap[link.from];
-        const to = nodeMap[link.to];
-        if (from && to) connections.push([from, to]);
-      });
-      drawConnections();
     };
   </script>
 </body>

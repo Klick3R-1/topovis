@@ -1,17 +1,24 @@
 {
   "name": "topovis",
-  "version": "1.0.0",
-  "description": "Topology visualiser",
+  "version": "2.0.0",
+  "description": "Advanced Network Topology Visualizer with Multi-User Support and SQLite Database",
   "license": "ISC",
   "author": "Klick3R",
   "type": "commonjs",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js",
+    "dev": "nodemon app.js"
   },
   "dependencies": {
     "body-parser": "^2.2.0",
     "express": "^5.1.0",
-    "express-session": "^1.18.1"
+    "express-session": "^1.18.1",
+    "sqlite3": "^5.0.0",
+    "bcrypt": "^5.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
   }
 }

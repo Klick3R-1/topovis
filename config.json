@@ -1,9 +1,7 @@
 {
   "types": [
-    "Router",
-    "Switch",
     "PC",
-    "PlexServer",
+    "Switch",
     "Proxmox"
   ]
 }

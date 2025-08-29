@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Settings</title>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <style>
     body {
       background: #121212;
@@ -15,101 +16,287 @@
     h1 {
       color: #66c0f4;
     }
+    .form-group {
+      margin-bottom: 1em;
+    }
     input[type="text"] {
-      padding: 5px;
+      padding: 8px;
       font-size: 14px;
       background: #1c1c1c;
       border: 1px solid #444;
       color: #eee;
+      border-radius: 4px;
+      width: 200px;
     }
     button {
-      padding: 6px 10px;
+      padding: 8px 16px;
       background: #2c2f33;
       border: 1px solid #555;
       color: #eee;
       cursor: pointer;
-      margin-left: 5px;
+      border-radius: 4px;
+      margin-left: 8px;
     }
     button:hover {
       background: #3c3f44;
+    }
+    button.delete-btn {
+      background: #ff6b6b;
+      border-color: #ff5252;
+    }
+    button.delete-btn:hover {
+      background: #ff5252;
     }
     ul {
       list-style: none;
       padding: 0;
     }
     li {
-      margin: 5px 0;
+      margin: 8px 0;
+      padding: 8px;
+      background: #2c2f33;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .template-card {
+      background: #2c2f33;
+      border: 1px solid #555;
+      border-radius: 8px;
+      padding: 1em;
+      margin: 1em 0;
+      max-width: 400px;
+    }
+    .template-card h3 {
+      margin-top: 0;
+      color: #66c0f4;
+    }
+    .template-card p {
+      color: #ccc;
+      margin-bottom: 1em;
+    }
+    .status-message {
+      padding: 12px;
+      border-radius: 4px;
+      margin: 1em 0;
+      text-align: center;
+    }
+    .status-message.success {
+      background: #4caf50;
+      color: white;
+    }
+    .status-message.error {
+      background: #f44336;
+      color: white;
+    }
+    .warning {
+      background: #ff9800;
+      color: black;
+      padding: 12px;
+      border-radius: 4px;
+      margin: 1em 0;
+      text-align: center;
     }
     a {
       color: #66c0f4;
       display: inline-block;
       margin-top: 1em;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
     }
   </style>
 </head>
-<body>
+<body x-data="settingsData()">
   <h1>⚙️ Settings</h1>
 
-  <form id="type-form">
-    <input type="text" id="new-type" placeholder="New device type..." />
-    <button type="submit">➕ Add Type</button>
-  </form>
+  <!-- Device Types Section -->
+  <div class="form-group">
+    <h2>Device Types</h2>
+    
+    <!-- Readonly warning -->
+    <div x-show="currentUser?.role === 'readonly'" class="warning">
+      👁️ Read-only users cannot modify device types
+    </div>
+    
+    <form x-show="currentUser?.role !== 'readonly'" @submit.prevent="addNodeType()">
+      <input type="text" x-model="newNodeType" placeholder="New device type..." required />
+      <button type="submit">➕ Add Type</button>
+    </form>
+    
+    <ul id="type-list">
+      <template x-for="(type, index) in nodeTypes" :key="index">
+        <li>
+          <span x-text="type"></span>
+          <button x-show="currentUser?.role !== 'readonly'" 
+                  @click="removeNodeType(index)" 
+                  class="delete-btn">🗑️</button>
+        </li>
+      </template>
+    </ul>
+  </div>
 
-  <h2>Available Types</h2>
-  <ul id="type-list"></ul>
+  <!-- Network Templates Section -->
+  <div class="form-group">
+    <h2>Network Templates</h2>
+    
+    <!-- Readonly warning -->
+    <div x-show="currentUser?.role === 'readonly'" class="warning">
+      👁️ Read-only users cannot create new networks
+    </div>
+    
+    <div class="template-card">
+      <h3>🏠 LAN Network</h3>
+      <p>Standard local area network with router, switches, and workstations</p>
+      <button x-show="currentUser?.role !== 'readonly'" 
+              @click="createTemplate('lan')" 
+              style="background: #4caf50;">Create LAN Network</button>
+    </div>
+    
+    <div class="template-card">
+      <h3>☁️ Hetzner Cloud</h3>
+      <p>Cloud infrastructure with load balancer, web servers, and database</p>
+      <button x-show="currentUser?.role !== 'readonly'" 
+              @click="createTemplate('hetzner')" 
+              style="background: #2196f3;">Create Hetzner Network</button>
+    </div>
+    
+    <div class="template-card">
+      <h3>🏢 Office Network</h3>
+      <p>Corporate network with VLANs, firewall, and role-based access</p>
+      <button x-show="currentUser?.role !== 'readonly'" 
+              @click="createTemplate('office')" 
+              style="background: #ff9800;">Create Office Network</button>
+    </div>
+  </div>
+
+  <!-- Status Messages -->
+  <div x-show="message" 
+       :class="`status-message ${messageType}`" 
+       x-text="message"></div>
 
   <a href="/">← Back to Editor</a>
 
   <script>
-    let types = [];
-
-    async function loadTypes() {
-      const res = await fetch('/config');
-      const config = await res.json();
-      types = config.types || [];
-      renderTypeList();
-    }
-
-    function renderTypeList() {
-      const ul = document.getElementById('type-list');
-      ul.innerHTML = '';
-      types.forEach((type, i) => {
-        const li = document.createElement('li');
-        li.textContent = type + ' ';
-        const del = document.createElement('button');
-        del.textContent = '🗑️';
-        del.onclick = () => {
-          types.splice(i, 1);
-          saveTypes();
-        };
-        li.appendChild(del);
-        ul.appendChild(li);
-      });
-    }
-
-    function saveTypes() {
-      fetch('/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ types })
-      }).then(res => {
-        if (!res.ok) alert('❌ Failed to save');
-        else renderTypeList();
-      });
-    }
-
-    document.getElementById('type-form').addEventListener('submit', e => {
-      e.preventDefault();
-      const input = document.getElementById('new-type');
-      const value = input.value.trim();
-      if (value && !types.includes(value)) {
-        types.push(value);
-        saveTypes();
-        input.value = '';
+    function settingsData() {
+      return {
+        nodeTypes: [],
+        newNodeType: '',
+        message: '',
+        messageType: 'success',
+        currentUser: null,
+        
+        async init() {
+          await this.loadCurrentUser();
+          await this.loadNodeTypes();
+        },
+        
+        async loadCurrentUser() {
+          try {
+            const response = await fetch('/user/info');
+            if (response.ok) {
+              this.currentUser = await response.json();
+            }
+          } catch (error) {
+            console.error('Failed to load user info:', error);
+          }
+        },
+        
+        async loadNodeTypes() {
+          try {
+            const response = await fetch('/config');
+            if (response.ok) {
+              const config = await response.json();
+              this.nodeTypes = config.types || [];
+            }
+          } catch (error) {
+            console.error('Failed to load node types:', error);
+          }
+        },
+        
+        async addNodeType() {
+          if (!this.newNodeType.trim()) return;
+          
+          // Check if user can add types (not readonly)
+          if (this.currentUser?.role === 'readonly') {
+            this.showMessage('Read-only users cannot add device types', 'error');
+            return;
+          }
+          
+          this.nodeTypes.push(this.newNodeType.trim());
+          this.newNodeType = '';
+          await this.saveNodeTypes();
+          this.showMessage('Device type added successfully!', 'success');
+        },
+        
+        async removeNodeType(index) {
+          // Check if user can remove types (not readonly)
+          if (this.currentUser?.role === 'readonly') {
+            this.showMessage('Read-only users cannot remove device types', 'error');
+            return;
+          }
+          
+          this.nodeTypes.splice(index, 1);
+          await this.saveNodeTypes();
+          this.showMessage('Device type removed successfully!', 'success');
+        },
+        
+        async saveNodeTypes() {
+          try {
+            const response = await fetch('/config', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ types: this.nodeTypes })
+            });
+            
+            if (!response.ok) {
+              throw new Error('Failed to save');
+            }
+          } catch (error) {
+            console.error('Failed to save node types:', error);
+            this.showMessage('Failed to save device types', 'error');
+          }
+        },
+        
+        async createTemplate(templateType) {
+          // Check if user can create networks (not readonly)
+          if (this.currentUser?.role === 'readonly') {
+            this.showMessage('Read-only users cannot create new networks', 'error');
+            return;
+          }
+          
+          const name = prompt(`Enter name for ${templateType} network:`);
+          if (!name) return;
+          
+          try {
+            const response = await fetch('/networks/template', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name, template: templateType })
+            });
+            
+            if (response.ok) {
+              this.showMessage(`${templateType} network created successfully!`, 'success');
+            } else {
+              throw new Error('Failed to create network');
+            }
+          } catch (error) {
+            console.error('Failed to create template network:', error);
+            this.showMessage('Failed to create network', 'error');
+          }
+        },
+        
+        showMessage(text, type) {
+          this.message = text;
+          this.messageType = type;
+          setTimeout(() => {
+            this.message = '';
+          }, 3000);
+        }
       }
-    });
-
-    loadTypes();
+    }
   </script>
 </body>
 </html>
