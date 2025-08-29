@@ -1,6 +1,9 @@
 # 🌐 TopoVis v2.0.0 - Advanced Network Topology Visualizer
 [![License: MIT with Commons Clause](https://img.shields.io/badge/License-MIT--Commons%20Clause-blue.svg)](LICENSE)
 
+<img width="1455" height="1047" alt="image" src="https://github.com/user-attachments/assets/30ea5a0d-c1da-4e11-878b-b2e28e224cbc" />
+
+
 
 > 🎉 **Major Release**: Complete rewrite with multi-user support, network access control, and enhanced UI/UX
 
