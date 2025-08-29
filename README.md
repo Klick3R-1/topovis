@@ -393,7 +393,7 @@ Check browser console for detailed error messages and Alpine.js component state.
 
 ## 📄 License
 
-MIT License - see LICENSE file for details.
+MIT-CC License - see LICENSE file for details.
 
 ---
 
