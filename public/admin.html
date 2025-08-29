@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Panel - TopoVis</title>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    body {
+      background: #121212;
+      color: #eee;
+      font-family: sans-serif;
+      margin: 0;
+      padding: 2em;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2em;
+      padding-bottom: 1em;
+      border-bottom: 1px solid #333;
+    }
+    h1 {
+      color: #66c0f4;
+      margin: 0;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1em;
+      margin-bottom: 2em;
+    }
+    .stat-card {
+      background: #2c2f33;
+      border: 1px solid #555;
+      border-radius: 8px;
+      padding: 1.5em;
+      text-align: center;
+    }
+    .stat-number {
+      font-size: 2em;
+      font-weight: bold;
+      color: #66c0f4;
+    }
+    .stat-label {
+      color: #ccc;
+      margin-top: 0.5em;
+    }
+    .users-section, .device-types-section {
+      background: #2c2f33;
+      border: 1px solid #555;
+      border-radius: 8px;
+      padding: 1.5em;
+      margin-bottom: 2em;
+    }
+    .users-header, .device-types-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1em;
+    }
+    .add-user-btn, .add-type-btn {
+      background: #4caf50;
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .add-user-btn:hover, .add-type-btn:hover {
+      background: #45a049;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1em;
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #555;
+    }
+    th {
+      background: #1e1e1e;
+      color: #66c0f4;
+      font-weight: bold;
+    }
+    tr:hover {
+      background: #3c3f44;
+    }
+    .action-btn {
+      padding: 6px 12px;
+      margin: 0 4px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .edit-btn {
+      background: #2196f3;
+      color: white;
+    }
+    .edit-btn:hover {
+      background: #1976d2;
+    }
+    .delete-btn {
+      background: #f44336;
+      color: white;
+    }
+    .delete-btn:hover {
+      background: #d32f2f;
+    }
+    .reset-btn {
+      background: #ff9800;
+      color: white;
+    }
+    .reset-btn:hover {
+      background: #f57c00;
+    }
+    
+    .promote-btn {
+      background: #9c27b0;
+      color: white;
+    }
+    .promote-btn:hover {
+      background: #7b1fa2;
+    }
+    .role-badge {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .role-admin {
+      background: #f44336;
+      color: white;
+    }
+    .role-user {
+      background: #2196f3;
+      color: white;
+    }
+    .role-readonly {
+      background: #ff9800;
+      color: black;
+    }
+    
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 0.8em;
+      font-weight: bold;
+      margin-left: 8px;
+    }
+    
+    .badge.default {
+      background: #4caf50;
+      color: white;
+    }
+    
+    .badge.admin {
+      background: #2196f3;
+      color: white;
+    }
+    
+    .badge.user {
+      background: #ff9800;
+      color: white;
+    }
+    
+    .promotion-section {
+      background: #1e1e1e;
+      border: 1px solid #555;
+      border-radius: 8px;
+      padding: 1.5em;
+      margin: 1em 0;
+    }
+    
+    .promotion-section h3 {
+      margin-top: 0;
+      color: #66c0f4;
+    }
+    
+    .promotion-section p {
+      color: #ccc;
+      margin-bottom: 1em;
+    }
+    
+    .promotion-controls {
+      display: flex;
+      gap: 1em;
+      align-items: center;
+    }
+    
+    .promotion-select {
+      flex: 1;
+      padding: 8px;
+      background: #2c2f33;
+      border: 1px solid #555;
+      color: #eee;
+      border-radius: 4px;
+    }
+    
+    .promote-selected-btn {
+      background: #9c27b0;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    
+    .promote-selected-btn:hover:not(:disabled) {
+      background: #7b1fa2;
+    }
+    
+    .promote-selected-btn:disabled {
+      background: #666;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    
+    .modal {
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+    }
+    .modal-content {
+      background: #2c2f33;
+      margin: 5% auto;
+      padding: 2em;
+      border: 1px solid #555;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 500px;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5em;
+    }
+    .close {
+      color: #aaa;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .close:hover {
+      color: #eee;
+    }
+    .form-group {
+      margin-bottom: 1em;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5em;
+      color: #ccc;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 8px;
+      background: #1c1c1c;
+      border: 1px solid #444;
+      color: #eee;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 1em;
+      margin-top: 1.5em;
+    }
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .btn-primary {
+      background: #4caf50;
+      color: white;
+    }
+    .btn-secondary {
+      background: #666;
+      color: white;
+    }
+    .btn-danger {
+      background: #f44336;
+      color: white;
+    }
+    .status-message {
+      padding: 12px;
+      border-radius: 4px;
+      margin: 1em 0;
+      text-align: center;
+    }
+    .status-message.success {
+      background: #4caf50;
+      color: white;
+    }
+    .status-message.error {
+      background: #f44336;
+      color: white;
+    }
+    a {
+      color: #66c0f4;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body x-data="adminData()">
+  <div class="header">
+    <h1>🔐 Admin Panel</h1>
+    <a href="/">← Back to Editor</a>
+  </div>
+
+  <!-- Stats Overview -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-number" x-text="users.length">0</div>
+      <div class="stat-label">Total Users</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" x-text="networks.length">0</div>
+      <div class="stat-label">Total Networks</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" x-text="users.filter(u => u.role === 'admin').length">0</div>
+      <div class="stat-label">Admins</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" x-text="users.filter(u => u.role === 'readonly').length">0</div>
+      <div class="stat-label">Read-only Users</div>
+    </div>
+  </div>
+
+  <!-- User Management -->
+  <div class="users-section">
+    <div class="users-header">
+      <h2>👥 User Management</h2>
+      <button class="add-user-btn" @click="console.log('Add User clicked'); showCreateModal = true">➕ Add User</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Email</th>
+          <th>Created</th>
+          <th>Last Login</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="user in users" :key="user.id">
+          <tr>
+            <td x-text="user.username"></td>
+            <td>
+              <span :class="`role-badge role-${user.role}`" x-text="user.role"></span>
+            </td>
+            <td x-text="user.email || '-'"></td>
+            <td x-text="formatDate(user.created_at)"></td>
+            <td x-text="user.last_login ? formatDate(user.last_login) : 'Never'"></td>
+            <td>
+              <button class="action-btn edit-btn" @click="editUser(user)">✏️ Edit</button>
+              <button class="action-btn reset-btn" @click="resetPassword(user)">🔑 Reset</button>
+              <button class="action-btn delete-btn" 
+                      @click="deleteUser(user)"
+                      x-show="user.id !== currentUserId">🗑️ Delete</button>
+            </td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Device Types Management -->
+  <div class="device-types-section">
+    <div class="device-types-header">
+      <h2>🔧 Device Types Management</h2>
+      <button class="add-type-btn" @click="showCreateTypeModal = true">➕ Add Admin Type</button>
+    </div>
+
+    <!-- User Types Promotion Section -->
+    <div class="promotion-section" x-show="userTypesToPromote.length > 0">
+      <h3>📈 Promote User Types to System Level</h3>
+      <p>Select user-created device types to promote to system-wide admin types:</p>
+      <div class="promotion-controls">
+        <select x-model="selectedTypeToPromote" class="promotion-select">
+          <option value="">-- Select a user type to promote --</option>
+          <template x-for="type in userTypesToPromote" :key="type.id">
+            <option :value="type.id" x-text="`${type.name} (by ${type.username || 'Unknown User'})`"></option>
+          </template>
+        </select>
+        <button @click="promoteSelectedType()" 
+                :disabled="!selectedTypeToPromote"
+                class="promote-selected-btn">⭐ Promote Selected</button>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Type Name</th>
+          <th>Category</th>
+          <th>Created By</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="type in deviceTypes" :key="type.id">
+          <tr>
+            <td x-text="type.name"></td>
+            <td>
+              <span x-show="type.is_default" class="badge default">Default</span>
+              <span x-show="type.is_admin && !type.is_default" class="badge admin">Admin</span>
+              <span x-show="!type.is_default && !type.is_admin" class="badge user">User</span>
+            </td>
+            <td x-text="type.user_id ? 'User' : (type.is_default ? 'System' : 'Admin')"></td>
+            <td x-text="formatDate(type.created_at)"></td>
+            <td>
+              <button class="action-btn promote-btn" 
+                      @click="promoteDeviceType(type)"
+                      x-show="!type.is_default && !type.is_admin && type.user_id"
+                      title="Promote to admin level">⭐ Promote</button>
+              <button class="action-btn delete-btn" 
+                      @click="deleteDeviceType(type)"
+                      x-show="!type.is_default">🗑️ Delete</button>
+            </td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Debug Info -->
+  <div style="background: #1e1e1e; padding: 1em; margin: 1em 0; border-radius: 4px; font-family: monospace; font-size: 12px;">
+    <strong>Debug Info:</strong><br>
+    showCreateModal: <span x-text="showCreateModal"></span><br>
+    showEditModal: <span x-text="showEditModal"></span><br>
+    showResetModal: <span x-text="showResetModal"></span><br>
+    Users loaded: <span x-text="users.length"></span><br>
+    Networks loaded: <span x-text="networks.length"></span>
+  </div>
+
+  <!-- Status Messages -->
+  <div x-show="message" 
+       :class="`status-message ${messageType}`" 
+       x-text="message"></div>
+
+  <!-- Create User Modal -->
+  <div class="modal" x-show="showCreateModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>➕ Create New User</h3>
+        <span class="close" @click="closeModal()">&times;</span>
+      </div>
+      
+      <form @submit.prevent="createUser()">
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" x-model="editingUser.username" required />
+        </div>
+        
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" x-model="editingUser.password" required />
+        </div>
+        
+        <div class="form-group">
+          <label>Role</label>
+          <select x-model="editingUser.role" required>
+            <option value="user">User</option>
+            <option value="readonly">Read-only</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" x-model="editingUser.email" />
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" @click="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit User Modal -->
+  <div class="modal" x-show="showEditModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>✏️ Edit User</h3>
+        <span class="close" @click="closeModal()">&times;</span>
+      </div>
+      
+      <form @submit.prevent="updateUser()">
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" x-model="editingUser.username" required />
+        </div>
+        
+        <div class="form-group">
+          <label>Role</label>
+          <select x-model="editingUser.role" required>
+            <option value="user">User</option>
+            <option value="readonly">Read-only</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" x-model="editingUser.email" />
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" @click="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Update User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Reset Password Modal -->
+  <div class="modal" x-show="showResetModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>🔑 Reset Password</h3>
+        <span class="close" @click="closeModal()">&times;</span>
+      </div>
+      
+      <form @submit.prevent="confirmResetPassword()">
+        <div class="form-group">
+          <label>New Password</label>
+          <input type="password" x-model="editingUser.newPassword" required />
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" @click="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Reset Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function adminData() {
+      return {
+        users: [],
+        networks: [],
+        deviceTypes: [],
+        userTypesToPromote: [],
+        selectedTypeToPromote: '',
+        currentUserId: null,
+        showCreateModal: false,
+        showEditModal: false,
+        showResetModal: false,
+        showCreateTypeModal: false,
+        editingUser: {
+          username: '',
+          password: '',
+          role: 'user',
+          email: ''
+        },
+        newDeviceType: {
+          name: ''
+        },
+        message: '',
+        messageType: 'success',
+        
+        async init() {
+          console.log('🚀 Admin component initializing...');
+          await this.loadCurrentUser();
+          await this.loadUsers();
+          await this.loadNetworks();
+          await this.loadDeviceTypes();
+          await this.loadUserTypesToPromote();
+          console.log('✅ Admin component initialized');
+        },
+        
+        async loadCurrentUser() {
+          try {
+            const response = await fetch('/user/info');
+            if (response.ok) {
+              const user = await response.json();
+              this.currentUserId = user.id;
+            }
+          } catch (error) {
+            console.error('Failed to load current user:', error);
+          }
+        },
+        
+        async loadUsers() {
+          try {
+            const response = await fetch('/admin/users');
+            if (response.ok) {
+              this.users = await response.json();
+            }
+          } catch (error) {
+            console.error('Failed to load users:', error);
+          }
+        },
+        
+        async loadNetworks() {
+          try {
+            const response = await fetch('/networks');
+            if (response.ok) {
+              this.networks = await response.json();
+            }
+          } catch (error) {
+            console.error('Failed to load networks:', error);
+          }
+        },
+        
+        async loadDeviceTypes() {
+          try {
+            const response = await fetch('/config');
+            if (response.ok) {
+              const config = await response.json();
+              this.deviceTypes = config.fullTypes || [];
+            }
+          } catch (error) {
+            console.error('Failed to load device types:', error);
+          }
+        },
+        
+        async loadUserTypesToPromote() {
+          try {
+            const response = await fetch('/admin/config/user-types');
+            if (response.ok) {
+              this.userTypesToPromote = await response.json();
+            }
+          } catch (error) {
+            console.error('Failed to load user types to promote:', error);
+          }
+        },
+        
+        async createUser() {
+          console.log('Creating user with data:', this.editingUser);
+          try {
+            const response = await fetch('/admin/users', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(this.editingUser)
+            });
+            
+            if (response.ok) {
+              this.showMessage('User created successfully!', 'success');
+              this.closeModal();
+              await this.loadUsers();
+            } else {
+              const error = await response.json();
+              this.showMessage(error.error || 'Failed to create user', 'error');
+            }
+          } catch (error) {
+            console.error('Failed to create user:', error);
+            this.showMessage('Failed to create user', 'error');
+          }
+        },
+        
+        async updateUser() {
+          try {
+            const response = await fetch(`/admin/users/${this.editingUser.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                username: this.editingUser.username,
+                role: this.editingUser.role,
+                email: this.editingUser.email
+              })
+            });
+            
+            if (response.ok) {
+              this.showMessage('User updated successfully!', 'success');
+              this.closeModal();
+              await this.loadUsers();
+            } else {
+              const error = await response.json();
+              this.showMessage(error.error || 'Failed to update user', 'error');
+            }
+          } catch (error) {
+            console.error('Failed to update user:', error);
+            this.showMessage('Failed to update user', 'error');
+          }
+        },
+        
+        async deleteUser(user) {
+          if (!confirm(`Are you sure you want to delete user "${user.username}"?`)) {
+            return;
+          }
+          
+          try {
+            const response = await fetch(`/admin/users/${user.id}`, {
+              method: 'DELETE'
+            });
+            
+            if (response.ok) {
+              this.showMessage('User deleted successfully!', 'success');
+              await this.loadUsers();
+            } else {
+              const error = await response.json();
+              this.showMessage(error.error || 'Failed to delete user', 'error');
+            }
+          } catch (error) {
+            console.error('Failed to delete user:', error);
+            this.showMessage('Failed to delete user', 'error');
+          }
+        },
+        
+        resetPassword(user) {
+          this.editingUser = { ...user, newPassword: '' };
+          this.showResetModal = true;
+        },
+        
+        async confirmResetPassword() {
+          try {
+            const response = await fetch(`/admin/users/${this.editingUser.id}/reset-password`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ newPassword: this.editingUser.newPassword })
+            });
+            
+            if (response.ok) {
+              this.showMessage('Password reset successfully!', 'success');
+              this.closeModal();
+            } else {
+              const error = await response.json();
+              this.showMessage(error.error || 'Failed to reset password', 'error');
+            }
+          } catch (error) {
+            console.error('Failed to reset password:', error);
+            this.showMessage('Failed to reset password', 'error');
+          }
+        },
+        
+        editUser(user) {
+          this.editingUser = { ...user };
+          this.showEditModal = true;
+        },
+        
+        closeModal() {
+          console.log('Closing modal, current state:', {
+            showCreateModal: this.showCreateModal,
+            showEditModal: this.showEditModal,
+            showResetModal: this.showResetModal
+          });
+          this.showCreateModal = false;
+          this.showEditModal = false;
+          this.showResetModal = false;
+          this.editingUser = {
+            username: '',
+            password: '',
+            role: 'user',
+            email: ''
+          };
+          console.log('Modal closed, new state:', {
+            showCreateModal: this.showCreateModal,
+            showEditModal: this.showEditModal,
+            showResetModal: this.showResetModal
+          });
+        },
+        
+        async promoteDeviceType(type) {
+          if (!confirm(`Are you sure you want to promote "${type.name}" to admin level? This will make it visible to all users.`)) {
+            return;
+          }
+          
+          try {
+            const response = await fetch(`/admin/config/${type.id}/promote`, {
+              method: 'POST'
+            });
+            
+            if (response.ok) {
+              this.showMessage('Device type promoted successfully!', 'success');
+              await this.loadDeviceTypes();
+              await this.loadUserTypesToPromote();
+            } else {
+              const error = await response.json();
+              this.showMessage(error.error || 'Failed to promote device type', 'error');
+            }
+          } catch (error) {
+            console.error('Failed to promote device type:', error);
+            this.showMessage('Failed to promote device type', 'error');
+          }
+        },
+        
+        async promoteSelectedType() {
+          if (!this.selectedTypeToPromote) return;
+          
+          const typeToPromote = this.userTypesToPromote.find(t => t.id === this.selectedTypeToPromote);
+          if (!typeToPromote) return;
+          
+          if (!confirm(`Are you sure you want to promote "${typeToPromote.name}" to admin level? This will make it visible to all users.`)) {
+            return;
+          }
+          
+          try {
+            const response = await fetch(`/admin/config/${this.selectedTypeToPromote}/promote`, {
+              method: 'POST'
+            });
+            
+            if (response.ok) {
+              this.showMessage('Device type promoted successfully!', 'success');
+              this.selectedTypeToPromote = '';
+              await this.loadDeviceTypes();
+              await this.loadUserTypesToPromote();
+            } else {
+              const error = await response.json();
+              this.showMessage(error.error || 'Failed to promote device type', 'error');
+            }
+          } catch (error) {
+            console.error('Failed to promote device type:', error);
+            this.showMessage('Failed to promote device type', 'error');
+          }
+        },
+        
+        closeTypeModal() {
+          this.showCreateTypeModal = false;
+          this.newDeviceType = { name: '' };
+        },
+        
+        async createDeviceType() {
+          if (!this.newDeviceType.name.trim()) return;
+          
+          try {
+            const response = await fetch('/admin/config', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: this.newDeviceType.name.trim() })
+            });
+            
+            if (response.ok) {
+              this.showMessage('Device type created successfully!', 'success');
+              this.closeTypeModal();
+              await this.loadDeviceTypes();
+            } else {
+              const error = await response.json();
+              this.showMessage(error.error || 'Failed to create device type', 'error');
+            }
+          } catch (error) {
+            console.error('Failed to create device type:', error);
+            this.showMessage('Failed to create device type', 'error');
+          }
+        },
+        
+        async deleteDeviceType(type) {
+          if (type.is_default) {
+            this.showMessage('Cannot delete default device types', 'error');
+            return;
+          }
+          
+          if (!confirm(`Are you sure you want to delete device type "${type.name}"?`)) {
+            return;
+          }
+          
+          try {
+            const response = await fetch(`/config/${type.id}`, {
+              method: 'DELETE'
+            });
+            
+            if (response.ok) {
+              this.showMessage('Device type deleted successfully!', 'success');
+              await this.loadDeviceTypes();
+            } else {
+              const error = await response.json();
+              this.showMessage(error.error || 'Failed to delete device type', 'error');
+            }
+          } catch (error) {
+            console.error('Failed to delete device type:', error);
+            this.showMessage('Failed to delete device type', 'error');
+          }
+        },
+        
+        closeTypeModal() {
+          this.showCreateTypeModal = false;
+          this.newDeviceType = { name: '' };
+        },
+        
+        showMessage(text, type) {
+          this.message = text;
+          this.messageType = type;
+          setTimeout(() => {
+            this.message = '';
+          }, 3000);
+        },
+        
+        formatDate(dateString) {
+          if (!dateString) return 'Never';
+          const date = new Date(dateString);
+          return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        }
+      }
+    }
+  </script>
+
+  <!-- Create Device Type Modal -->
+  <div class="modal" x-show="showCreateTypeModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>➕ Create New Device Type</h3>
+        <span class="close" @click="closeTypeModal()">&times;</span>
+      </div>
+      
+      <form @submit.prevent="createDeviceType()">
+        <div class="form-group">
+          <label>Device Type Name</label>
+          <input type="text" x-model="newDeviceType.name" placeholder="e.g., Load Balancer, Firewall" required />
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" @click="closeTypeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Type</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

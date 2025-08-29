@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Network Editor</title>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <style>
     body { font-family: sans-serif; margin: 0; background: #121212; color: #eee; }
     #sidebar {
@@ -87,14 +88,305 @@
       background: #3c3f44;
     }
     a { color: #66c0f4; }
+    .network-selector {
+      margin-bottom: 1em;
+      padding: 8px;
+      background: #333;
+      border: 1px solid #555;
+      color: #eee;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .warning {
+      background: #ff6b6b;
+      color: white;
+      padding: 8px;
+      margin: 8px 0;
+      border-radius: 4px;
+      text-align: center;
+    }
+    
+    /* Modal Styles */
+    .modal {
+      position: fixed;
+      z-index: 9999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      display: none !important; /* Force hidden by default */
+    }
+    
+    .modal-content {
+      background: #2c2f33;
+      margin: 5% auto;
+      padding: 2em;
+      border: 1px solid #555;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5em;
+      border-bottom: 1px solid #555;
+      padding-bottom: 1em;
+    }
+    
+    .modal-header h3 {
+      margin: 0;
+      color: #66c0f4;
+    }
+    
+    .close {
+      color: #aaa;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    
+    .close:hover {
+      color: #eee;
+    }
+    
+    .modal-body {
+      margin-bottom: 1.5em;
+    }
+    
+    .form-group {
+      margin-bottom: 1em;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5em;
+      color: #ccc;
+      font-weight: bold;
+    }
+    
+    .form-group select {
+      width: 100%;
+      padding: 8px;
+      background: #1c1c1c;
+      border: 1px solid #444;
+      color: #eee;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    
+    .user-list {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 1em;
+      background: #1c1c1c;
+    }
+    
+    .user-checkbox {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      border-bottom: 1px solid #333;
+      cursor: pointer;
+    }
+    
+    .user-checkbox:last-child {
+      border-bottom: none;
+    }
+    
+    .user-checkbox input[type="checkbox"] {
+      margin-right: 10px;
+    }
+    
+    .user-role {
+      margin-left: auto;
+      font-size: 11px;
+      color: #888;
+      background: #333;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    
+    .current-access {
+      margin-top: 1em;
+      padding: 1em;
+      background: #1c1c1c;
+      border-radius: 4px;
+      border: 1px solid #444;
+    }
+    
+    .current-access h4 {
+      margin: 0 0 0.5em 0;
+      color: #66c0f4;
+    }
+    
+    .current-access ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    
+    .current-access li {
+      padding: 4px 0;
+      border-bottom: 1px solid #333;
+    }
+    
+    .current-access li:last-child {
+      border-bottom: none;
+    }
+    
+    .access-type {
+      float: right;
+      font-size: 11px;
+      color: #888;
+      background: #333;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 1em;
+      border-top: 1px solid #555;
+      padding-top: 1em;
+    }
+    
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .btn-primary {
+      background: #4caf50;
+      color: white;
+    }
+    
+    .btn-secondary {
+      background: #666;
+      color: white;
+    }
+    
+    .sidebar-button {
+      background: #4caf50;
+      border: none;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .sidebar-button:hover {
+      background: #45a049;
+    }
+    
+    /* Hide elements with x-cloak until Alpine.js is ready */
+    [x-cloak] {
+      display: none !important;
+    }
+    
+    /* Modal visibility control - hidden by default, shown only when needed */
+    .modal {
+      display: none !important;
+    }
+    
+    /* Show modal when JavaScript sets display to block */
+    .modal[style*="display: block"] {
+      display: block !important;
+    }
+    
+
   </style>
 </head>
 <body>
-  <div id="sidebar">
+  <div id="sidebar" x-data="sidebarData()">
     <h3>Palette</h3>
+    
+    <!-- User Info -->
+    <div style="margin-bottom: 1em; padding: 8px; background: #2c2f33; border-radius: 4px;">
+      <div style="font-size: 12px; color: #ccc;">Logged in as:</div>
+      <div x-show="!currentUser" style="color: #999; font-style: italic;">Loading user info...</div>
+      <div x-show="currentUser" style="font-weight: bold;" x-text="currentUser?.username || 'Unknown'"></div>
+      <div x-show="currentUser" style="font-size: 11px; color: #999;" x-text="currentUser?.role || 'Unknown'"></div>
+      
+      <!-- Test button for debugging -->
+      <button x-show="!currentUser" @click="loadUserInfo()" 
+              style="margin-top: 5px; padding: 2px 6px; font-size: 10px; background: #444;">
+        🔄 Reload User Info
+      </button>
+      
+      <!-- Debug info for network settings -->
+      <div x-show="currentNetworkId" style="margin-top: 5px; padding: 4px; background: #333; border-radius: 3px; font-size: 10px;">
+        <div>Network ID: <span x-text="currentNetworkId"></span></div>
+        <div>Modal State: <span x-text="showNetworkSettings"></span></div>
+        <div>Access Settings: <span x-text="networkAccessSettings ? 'Loaded' : 'Not Loaded'"></span></div>
+      </div>
+    </div>
+    
+    <!-- Network Selector -->
+    <select x-model="currentNetworkId" @change="switchNetwork($event.target.value)" class="network-selector">
+      <option value="">Select Network</option>
+      <template x-for="network in networks" :key="network.id">
+        <option :value="network.id" x-text="network.name + (network.owner ? ' (' + network.owner + ')' : '')"></option>
+      </template>
+    </select>
+    
+    <!-- Network Actions -->
+    <div x-show="currentNetworkId" style="margin-bottom: 1em;">
+      <button @click="createNewNetwork()" style="width: 100%; margin-bottom: 5px;" 
+              x-show="currentUser?.role !== 'readonly'">➕ New Network</button>
+      <button @click="exportNetwork()" style="width: 100%; margin-bottom: 5px;">📤 Export</button>
+      <button @click="importNetwork()" style="width: 100%; margin-bottom: 5px;" 
+              x-show="currentUser?.role !== 'readonly'">📥 Import</button>
+      <button @click="deleteNetwork()" style="width: 100%; margin-bottom: 5px; background: #ff6b6b;" 
+              x-show="canEditNetwork()">🗑️ Delete</button>
+    </div>
+    
     <div id="palette"></div>
-    <p><a href="/logout">Logout</a></p>
-    <p><a href="/settings">⚙️ Settings</a></p>
+    
+    <!-- Navigation Links -->
+    <div style="margin-top: 1em; padding-top: 1em; border-top: 1px solid #333;">
+      <p><a href="/settings">⚙️ Settings</a></p>
+      <p x-show="currentUser?.role === 'admin'">
+        <a href="/admin">🔐 Admin Panel</a>
+        <span style="font-size: 10px; color: #666;">(Admin only)</span>
+      </p>
+      <p x-show="currentNetworkId">
+        <button onclick="openNetworkSettings()" class="sidebar-button">🌐 Network Settings</button>
+      </p>
+      <p><a href="/logout">🚪 Logout</a></p>
+    </div>
+    
+    <!-- Controls Section (moved inside sidebar to access currentUser) -->
+    <div id="controls" style="position: fixed; bottom: 10px; left: 220px; z-index: 9999; background: #1c1c1c; padding: 6px; border: 1px solid #444; color: #eee;">
+      <button @click="saveLayout()" x-show="currentUser?.role !== 'readonly'">💾 Save Layout</button>
+      <button @click="removeMode = !removeMode" x-show="currentUser?.role !== 'readonly'">
+        🗑️ Remove Mode: <span x-text="removeMode ? 'ON' : 'OFF'"></span>
+      </button>
+      
+      <!-- Warning when remove mode is active -->
+      <div x-show="removeMode" class="warning">
+        ⚠️ Remove mode is active - click nodes/connections to delete
+      </div>
+      
+      <!-- Readonly notice -->
+      <div x-show="currentUser?.role === 'readonly'" class="warning" style="background: #ffa726; color: black;">
+        👁️ Read-only mode - You can view but not edit networks
+      </div>
+    </div>
   </div>
 
   <div id="canvas-container">
@@ -102,24 +394,578 @@
     <div id="canvas" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
   </div>
 
-  <div id="controls">
-    <button onclick="saveLayout()">💾 Save Layout</button>
-    <button onclick="toggleRemoveMode()">🗑️ Remove Mode: <span id="remove-state">OFF</span></button>
+  <!-- Network Settings Modal -->
+  <div class="modal" id="networkSettingsModal" style="display: none;" onclick="if(event.target === this) closeNetworkSettings()">
+    <div class="modal-content">
+              <div class="modal-header">
+          <h3>🌐 Network Access Settings</h3>
+          <span class="close" onclick="closeNetworkSettings()">&times;</span>
+        </div>
+        
+        <!-- Debug info in modal -->
+        <div style="background: #1c1c1c; padding: 8px; margin-bottom: 1em; border-radius: 4px; font-size: 12px;">
+          <strong>Debug:</strong> Modal is visible! Network ID: <span id="modalNetworkId"></span>
+          <br>Modal State: <span id="modalState"></span>
+          <br>Modal Element: <span>Modal div exists</span>
+          <br>Modal CSS: <span>Modal CSS applied</span>
+        </div>
+      
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Access Type:</label>
+          <select id="accessTypeSelect">
+            <option value="private">Private (Owner only)</option>
+            <option value="shared">Shared (Specific users)</option>
+            <option value="public">Public (All users)</option>
+          </select>
+        </div>
+        
+        <div class="form-group" id="userSelectionGroup" style="display: none;">
+          <label>Select Users:</label>
+          <div style="font-size: 12px; color: #66c0f4; margin-bottom: 8px;">
+            💡 Network owner is automatically included and cannot be removed
+          </div>
+          <div class="user-list" id="userList">
+            <!-- Users will be populated by JavaScript -->
+          </div>
+        </div>
+        
+        <div class="current-access" id="currentAccessGroup" style="display: none;">
+          <h4>Current Access:</h4>
+          <ul id="currentAccessList">
+            <!-- Access info will be populated by JavaScript -->
+          </ul>
+        </div>
+      </div>
+      
+      <div class="modal-actions">
+        <button onclick="saveNetworkAccess()" class="btn btn-primary">Save Settings</button>
+        <button onclick="closeNetworkSettings()" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
   </div>
 
   <script>
+    // Alpine.js data and functions
+    function sidebarData() {
+      return {
+        networks: [],
+        currentNetworkId: '',
+        currentUser: null,
+        removeMode: false,
+        showNetworkSettings: false,
+        networkAccessSettings: null,
+        availableUsers: [],
+        selectedUserIds: [],
+        async init() {
+          console.log('🔄 Initializing sidebar data...');
+          
+          // Ensure modal starts in closed state
+          this.showNetworkSettings = false;
+          
+          await this.loadNetworks();
+          await this.loadUserInfo();
+          // Load current network if available
+          const urlParams = new URLSearchParams(window.location.search);
+          const networkId = urlParams.get('network');
+          if (networkId) {
+            this.currentNetworkId = networkId;
+            this.switchNetwork(networkId);
+          }
+          console.log('✅ Sidebar initialization complete. Current user:', this.currentUser);
+          console.log('🔧 Network settings modal state:', this.showNetworkSettings);
+          console.log('🔧 Current network ID:', this.currentNetworkId);
+          
+          // Set global flag that component is ready
+          alpineComponentReady = true;
+          console.log('✅ Alpine.js component marked as ready');
+          
+          // Update global variables
+          this.updateGlobalVariables();
+          
+          // Set up watchers to keep global variables in sync
+          this.$watch('currentUser', () => this.updateGlobalVariables());
+          this.$watch('currentNetworkId', () => this.updateGlobalVariables());
+          this.$watch('removeMode', () => this.updateGlobalVariables());
+          this.$watch('showNetworkSettings', (value) => {
+            console.log('🔧 Modal state changed to:', value);
+            if (value === true) {
+              console.log('🔧 Modal opened - checking why...');
+              console.trace('Modal state change stack trace');
+            }
+          });
+          
+          // Watch for network ID changes
+          this.$watch('currentNetworkId', (value) => {
+            console.log('🔧 Network ID changed to:', value);
+            console.log('🔧 Modal should show:', this.showNetworkSettings && value);
+          });
+          
+          // Add escape key listener
+          document.addEventListener('keydown', this.handleEscape.bind(this));
+          
+          // Debug: Check modal state after initialization
+          setTimeout(() => {
+            console.log('🔍 Post-init modal check:');
+            console.log('  - showNetworkSettings:', this.showNetworkSettings);
+            console.log('  - currentNetworkId:', this.currentNetworkId);
+            console.log('  - Modal element exists:', !!document.querySelector('.modal'));
+            const modal = document.querySelector('.modal');
+            if (modal) {
+              console.log('  - Modal computed display:', window.getComputedStyle(modal).display);
+              console.log('  - Modal x-show condition:', this.showNetworkSettings && this.currentNetworkId);
+            }
+          }, 500);
+        },
+        
+        updateGlobalVariables() {
+          currentUserGlobal = this.currentUser;
+          currentNetworkIdGlobal = this.currentNetworkId;
+          removeModeGlobal = this.removeMode;
+          console.log('Global variables updated:', { currentUserGlobal, currentNetworkIdGlobal, removeModeGlobal });
+        },
+        
+        async loadNetworks() {
+          try {
+            const response = await fetch('/networks');
+            if (response.ok) {
+              this.networks = await response.json();
+            }
+          } catch (error) {
+            console.error('Failed to load networks:', error);
+          }
+        },
+        
+        async loadUserInfo() {
+          try {
+            const response = await fetch('/user/info');
+            if (response.ok) {
+              this.currentUser = await response.json();
+              console.log('User info loaded:', this.currentUser);
+            }
+          } catch (error) {
+            console.error('Failed to load user info:', error);
+          }
+        },
+        
+        async loadAvailableUsers() {
+          try {
+            const response = await fetch('/users');
+            if (response.ok) {
+              this.availableUsers = await response.json();
+            }
+          } catch (error) {
+            console.error('Failed to load users:', error);
+          }
+        },
+        
+        async openNetworkSettings() {
+          console.log('🔧 Opening network settings...');
+          console.log('Current network ID:', this.currentNetworkId);
+          
+          if (!this.currentNetworkId) {
+            console.log('❌ No network selected');
+            alert('Please select a network first');
+            return;
+          }
+          
+          // Ensure modal state is properly set
+          this.showNetworkSettings = true;
+          this.selectedUserIds = [];
+          console.log('✅ Modal state set to true');
+          console.log('✅ Current network ID confirmed:', this.currentNetworkId);
+          
+          // Debug: Check if modal element exists and is visible
+          setTimeout(() => {
+            const modal = document.querySelector('.modal');
+            console.log('🔍 Modal element found:', modal);
+            if (modal) {
+              console.log('🔍 Modal display style:', window.getComputedStyle(modal).display);
+              console.log('🔍 Modal visibility:', window.getComputedStyle(modal).visibility);
+              console.log('🔍 Modal z-index:', window.getComputedStyle(modal).zIndex);
+              console.log('🔍 Modal position:', window.getComputedStyle(modal).position);
+              console.log('🔍 Modal x-show value:', modal.getAttribute('x-show'));
+              console.log('🔍 Modal x-cloak attribute:', modal.hasAttribute('x-cloak'));
+              console.log('🔍 Modal computed x-show result:', modal.style.display !== 'none');
+              
+              // Additional debugging
+              console.log('🔍 Alpine.js x-show evaluation:', this.showNetworkSettings && this.currentNetworkId);
+              console.log('🔍 showNetworkSettings value:', this.showNetworkSettings);
+              console.log('🔍 currentNetworkId value:', this.currentNetworkId);
+              
+              // Check modal style attribute
+              console.log('🔍 Modal style attribute:', modal.getAttribute('style'));
+              console.log('🔍 Modal inline style display:', modal.style.display);
+              console.log('🔍 Modal computed style display:', window.getComputedStyle(modal).display);
+            }
+          }, 100);
+          
+          // Load available users
+          await this.loadAvailableUsers();
+          console.log('✅ Users loaded:', this.availableUsers.length);
+          
+          // Load current access settings
+          try {
+            const response = await fetch(`/networks/${this.currentNetworkId}/access`);
+            if (response.ok) {
+              const access = await response.json();
+              console.log('✅ Access settings loaded:', access);
+              this.networkAccessSettings = {
+                accessType: access.length === 0 ? 'private' : 
+                           (access[0].access_type === 'public' ? 'public' : 'shared'),
+                currentAccess: access
+              };
+              
+              // If shared, populate selected users
+              if (this.networkAccessSettings.accessType === 'shared') {
+                this.selectedUserIds = access
+                  .filter(a => a.access_type === 'private' && a.user_id)
+                  .map(a => a.user_id);
+              }
+            }
+          } catch (error) {
+            console.error('Failed to load access settings:', error);
+            this.networkAccessSettings = {
+              accessType: 'private',
+              currentAccess: []
+            };
+          }
+        },
+        
+        onAccessTypeChange() {
+          if (this.networkAccessSettings.accessType === 'shared') {
+            this.selectedUserIds = [];
+          }
+        },
+        
+        async saveNetworkAccess() {
+          if (!this.currentNetworkId) return;
+          
+          try {
+            const accessType = this.networkAccessSettings.accessType;
+            const userIds = accessType === 'shared' ? this.selectedUserIds : [];
+            
+            const response = await fetch(`/networks/${this.currentNetworkId}/access`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ accessType, userIds })
+            });
+            
+            if (response.ok) {
+              const result = await response.json();
+              alert(result.message || 'Network access updated successfully!');
+              this.closeNetworkSettings();
+              
+              // Reload networks to reflect changes
+              await this.loadNetworks();
+            } else {
+              const error = await response.json();
+              alert(error.error || 'Failed to update network access');
+            }
+          } catch (error) {
+            console.error('Failed to save network access:', error);
+            alert('Failed to save network access');
+          }
+        },
+        
+        closeNetworkSettings() {
+          console.log('🔧 Closing network settings modal');
+          this.showNetworkSettings = false;
+          this.networkAccessSettings = null;
+          this.selectedUserIds = [];
+        },
+        
+        // Handle escape key to close modal
+        handleEscape(event) {
+          if (event.key === 'Escape' && this.showNetworkSettings) {
+            this.closeNetworkSettings();
+          }
+        },
+        
+        async switchNetwork(networkId) {
+          if (!networkId) return;
+          this.currentNetworkId = networkId;
+          console.log('Switching to network:', networkId);
+          
+          // Ensure modal is closed when switching networks
+          this.showNetworkSettings = false;
+          
+          // Reload canvas with new network
+          await window.loadNetworkData(networkId);
+        },
+        
+        async createNewNetwork() {
+          const name = prompt('Enter network name:');
+          if (!name) return;
+          
+          try {
+            const response = await fetch('/networks', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin',
+              body: JSON.stringify({ name, type: 'custom' })
+            });
+            
+            if (response.ok) {
+              const network = await response.json();
+              this.networks.push(network);
+              this.currentNetworkId = network.id;
+              // Clear canvas for new network
+              document.getElementById('canvas').innerHTML = '';
+              connections.length = 0;
+              drawConnections();
+              // Load the new network
+              this.switchNetwork(network.id);
+            }
+          } catch (error) {
+            alert('Failed to create network: ' + error.message);
+          }
+        },
+        
+        async exportNetwork() {
+          if (!this.currentNetworkId) return;
+          
+          try {
+            const response = await fetch(`/networks/${this.currentNetworkId}/export`);
+            if (response.ok) {
+              const data = await response.json();
+              
+              // Create and download file
+              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `${data.network.name}.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+              
+              alert('✅ Network exported successfully!');
+            } else {
+              alert('❌ Export failed');
+            }
+          } catch (error) {
+            alert('❌ Export error: ' + error.message);
+          }
+        },
+        
+        async deleteNetwork() {
+          if (!this.currentNetworkId) return;
+          
+          if (!confirm('Are you sure you want to delete this network?')) return;
+          
+          try {
+            const response = await fetch(`/networks/${this.currentNetworkId}`, {
+              method: 'DELETE',
+              credentials: 'same-origin'
+            });
+            
+            if (response.ok) {
+              this.networks = this.networks.filter(n => n.id !== this.currentNetworkId);
+              this.currentNetworkId = '';
+              // Clear canvas
+              document.getElementById('canvas').innerHTML = '';
+              connections.length = 0;
+              drawConnections();
+            }
+          } catch (error) {
+            alert('Failed to delete network: ' + error.message);
+          }
+        },
+        
+        async importNetwork() {
+          if (!this.currentNetworkId) return;
+          
+          // Create file input
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = '.json';
+          input.style.display = 'none';
+          
+          input.onchange = async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            try {
+              const text = await file.text();
+              const importData = JSON.parse(text);
+              
+              if (!importData.network || !importData.network.nodes) {
+                alert('❌ Invalid network file format');
+                return;
+              }
+              
+              // Clear existing canvas
+              document.getElementById('canvas').innerHTML = '';
+              connections.length = 0;
+              
+              // Import nodes
+              const nodeMap = {};
+              importData.network.nodes.forEach(nodeData => {
+                const node = createNode({
+                  type: nodeData.type,
+                  name: nodeData.name || '',
+                  ip: nodeData.ip || '',
+                  left: nodeData.x + 'px',
+                  top: nodeData.y + 'px',
+                  id: nodeData.id || crypto.randomUUID()
+                });
+                nodeMap[nodeData.id] = node;
+              });
+              
+              // Import connections
+              importData.network.connections.forEach(link => {
+                const from = nodeMap[link.from];
+                const to = nodeMap[link.to];
+                if (from && to) {
+                  connections.push([from, to]);
+                }
+              });
+              
+              drawConnections();
+              alert('✅ Network imported successfully!');
+              
+            } catch (error) {
+              alert('❌ Import error: ' + error.message);
+            }
+            
+            // Clean up
+            document.body.removeChild(input);
+          };
+          
+          document.body.appendChild(input);
+          input.click();
+        },
+        
+        canEditNetwork() {
+          return this.currentUser?.role === 'admin' || 
+                 this.currentUser?.id === this.networks.find(n => n.id === this.currentNetworkId)?.user_id;
+        },
+        
+        async saveLayout() {
+          // Check if component is ready
+          if (!isComponentReady()) {
+            alert('System not ready. Please wait for page to load completely.');
+            return;
+          }
+          
+          // Use global variables
+          if (!currentUserGlobal) {
+            alert('User not loaded. Please wait for page to load completely.');
+            return;
+          }
+          
+          if (!currentNetworkIdGlobal) {
+            alert('Please select a network first');
+            return;
+          }
+          
+          // Check if user can edit (not readonly)
+          if (currentUserGlobal.role === 'readonly') {
+            alert('Read-only users cannot save networks');
+            return;
+          }
+
+          const nodes = [];
+          document.querySelectorAll('.node').forEach(node => {
+            const [nameInput, ipInput] = node.querySelectorAll('input');
+            nodes.push({
+              type: node.querySelector('strong').textContent,
+              name: nameInput.value,
+              ip: ipInput.value,
+              left: node.style.left,
+              top: node.style.top,
+              id: node.dataset.id
+            });
+          });
+
+          const connectionData = connections.map(([a, b]) => ({
+            from: a.dataset.id,
+            to: b.dataset.id,
+            type: 'ethernet'
+          }));
+
+          try {
+            const response = await fetch(`/networks/${currentNetworkIdGlobal}/save`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin',
+              body: JSON.stringify({ nodes, connections: connectionData })
+            });
+            
+            if (response.ok) {
+              alert("✅ Layout saved!");
+            } else {
+              alert("❌ Save failed");
+            }
+          } catch (error) {
+            alert("❌ Save error: " + error.message);
+          }
+        }
+      }
+    }
+
+    // Global flag to track when Alpine.js component is ready
+    let alpineComponentReady = false;
+    
+    // Global variables for easier access
+    let currentUserGlobal = null;
+    let currentNetworkIdGlobal = '';
+    let removeModeGlobal = false;
+    
+    // Simple helper to check if component is ready
+    function isComponentReady() {
+      return alpineComponentReady;
+    }
+    
+    // Helper function to safely get sidebar component data with retry
+    function getSidebarData(maxRetries = 3, delay = 100) {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        const sidebarElement = document.querySelector('#sidebar');
+        if (!sidebarElement) {
+          if (attempt === maxRetries) {
+            console.log('Sidebar element not found after', maxRetries, 'attempts');
+            return null;
+          }
+          continue;
+        }
+        
+        // Check for different Alpine.js component properties
+        let componentData = null;
+        if (sidebarElement.__x) {
+          componentData = sidebarElement.__x.$data;
+        } else if (sidebarElement._x_dataStack) {
+          componentData = sidebarElement._x_dataStack[0];
+        } else if (sidebarElement._x) {
+          componentData = sidebarElement._x.$data;
+        }
+        
+        if (!componentData) {
+          if (attempt === maxRetries) {
+            console.log('Alpine.js component data not available after', maxRetries, 'attempts');
+            console.log('Element properties:', Object.keys(sidebarElement));
+            console.log('__x:', sidebarElement.__x);
+            console.log('_x_dataStack:', sidebarElement._x_dataStack);
+            console.log('_x:', sidebarElement._x);
+            return null;
+          }
+          // Wait a bit before retrying
+          return new Promise(resolve => {
+            setTimeout(() => resolve(getSidebarData(maxRetries - attempt, delay)), delay);
+          });
+        }
+        
+        return componentData;
+      }
+      return null;
+    }
+
+    // Canvas functionality (keeping your existing code)
     const canvas = document.getElementById('canvas');
     const lineCanvas = document.getElementById('line-canvas');
     const ctx = lineCanvas.getContext('2d');
 
     const connections = [];
     let selectedNode = null;
-    let removeMode = false;
-
-    function toggleRemoveMode() {
-      removeMode = !removeMode;
-      document.getElementById('remove-state').textContent = removeMode ? 'ON' : 'OFF';
-    }
 
     function allowDrop(ev) {
       ev.preventDefault();
@@ -197,7 +1043,26 @@
     }
 
     lineCanvas.addEventListener('click', (e) => {
-      if (!removeMode) return;
+      // Check if Alpine.js component is ready
+      if (!isComponentReady()) {
+        console.log('Component not ready, operation cancelled');
+        return;
+      }
+      
+      // Use global variables instead of trying to access component
+      if (!removeModeGlobal) return;
+      
+      // Check if user can delete (not readonly)
+      if (!currentUserGlobal) {
+        console.log('User data not available, operation cancelled');
+        return;
+      }
+      
+      if (currentUserGlobal.role === 'readonly') {
+        alert('Read-only users cannot delete connections');
+        return;
+      }
+      
       const rect = lineCanvas.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const clickY = e.clientY - rect.top;
@@ -232,18 +1097,54 @@
       node.dataset.id = data.id || crypto.randomUUID();
 
       node.onclick = function(e) {
-        if (removeMode) {
-          connections.forEach((pair, idx) => {
-            if (pair[0] === node || pair[1] === node) connections.splice(idx, 1);
-          });
-          node.remove();
-          drawConnections();
+        // Check if Alpine.js component is ready
+        if (!isComponentReady()) {
+          console.log('Component not ready, operation cancelled');
           return;
         }
+        
+        // Use global variables instead of trying to access component
+        if (!removeModeGlobal) return;
+        
+        // Check if user can delete (not readonly)
+        if (!currentUserGlobal) {
+          console.log('User data not available, operation cancelled');
+          return;
+        }
+        
+        if (currentUserGlobal.role === 'readonly') {
+          alert('Read-only users cannot delete nodes');
+          return;
+        }
+        
+        connections.forEach((pair, idx) => {
+          if (pair[0] === node || pair[1] === node) connections.splice(idx, 1);
+        });
+        node.remove();
+        drawConnections();
+        return;
       };
 
       node.onmousedown = function(e) {
-        if (removeMode) return;
+        // Check if Alpine.js component is ready
+        if (!isComponentReady()) {
+          console.log('Component not ready, operation cancelled');
+          return;
+        }
+        
+        // Use global variables instead of trying to access component
+        if (removeModeGlobal) return;
+        
+        // Check if user can edit (not readonly)
+        if (!currentUserGlobal) {
+          console.log('User data not available, operation cancelled');
+          return;
+        }
+        
+        if (currentUserGlobal.role === 'readonly') {
+          alert('Read-only users cannot move nodes');
+          return;
+        }
 
         if (e.shiftKey) {
           if (selectedNode && selectedNode !== node) {
@@ -277,6 +1178,24 @@
 
     function drop(ev) {
       ev.preventDefault();
+      
+      // Check if Alpine.js component is ready
+      if (!isComponentReady()) {
+        console.log('Component not ready, operation cancelled');
+        return;
+      }
+      
+      // Check if user can edit (not readonly)
+      if (!currentUserGlobal) {
+        console.log('User data not available, operation cancelled');
+        return;
+      }
+      
+      if (currentUserGlobal.role === 'readonly') {
+        alert('Read-only users cannot add new nodes');
+        return;
+      }
+      
       const type = ev.dataTransfer.getData("text/plain");
       const nodeData = {
         type,
@@ -288,53 +1207,235 @@
       createNode(nodeData);
     }
 
-    function saveLayout() {
-      const nodes = [];
-      document.querySelectorAll('.node').forEach(node => {
-        const [nameInput, ipInput] = node.querySelectorAll('input');
-        nodes.push({
-          type: node.querySelector('strong').textContent,
-          name: nameInput.value,
-          ip: ipInput.value,
-          left: node.style.left,
-          top: node.style.top,
-          id: node.dataset.id
+    // Global function to load network data
+    window.loadNetworkData = async function(networkId) {
+      try {
+        const response = await fetch(`/networks/${networkId}/layout`);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('📥 Network data loaded:', data);
+          
+          // Clear existing canvas
+          canvas.innerHTML = '';
+          connections.length = 0;
+          
+          const nodeMap = {};
+          data.nodes?.forEach(n => {
+            const node = createNode(n);
+            nodeMap[n.id] = node;
+            console.log(`Created node: ${n.id} -> ${node}`);
+          });
+          
+          console.log('Node map:', nodeMap);
+          
+          data.connections?.forEach(link => {
+            console.log(`Processing connection: ${link.from} -> ${link.to}`);
+            const from = nodeMap[link.from];
+            const to = nodeMap[link.to];
+            if (from && to) {
+              connections.push([from, to]);
+              console.log(`Added connection: ${from} -> ${to}`);
+            } else {
+              console.error(`Failed to create connection: from=${link.from}, to=${link.to}`);
+              console.error(`Available nodes:`, Object.keys(nodeMap));
+            }
+          });
+          
+          console.log('Final connections array:', connections);
+          drawConnections();
+        }
+      } catch (error) {
+        console.error('Failed to load network:', error);
+      }
+    };
+
+    // Plain JavaScript modal functions (no Alpine.js dependency)
+    window.openNetworkSettings = function() {
+      const modal = document.getElementById('networkSettingsModal');
+      const networkId = currentNetworkIdGlobal;
+      
+      if (!networkId) {
+        alert('Please select a network first');
+        return;
+      }
+      
+      console.log('🔧 Opening network settings for network:', networkId);
+      
+      // Update debug info
+      document.getElementById('modalNetworkId').textContent = networkId;
+      document.getElementById('modalState').textContent = 'Open';
+      
+      // Show modal
+      modal.style.display = 'block';
+      
+      // Load users and access settings
+      loadModalData(networkId);
+    };
+    
+    window.closeNetworkSettings = function() {
+      const modal = document.getElementById('networkSettingsModal');
+      modal.style.display = 'none';
+      
+      // Update debug info
+      document.getElementById('modalState').textContent = 'Closed';
+    };
+    
+    window.saveNetworkAccess = async function() {
+      const networkId = currentNetworkIdGlobal;
+      const accessType = document.getElementById('accessTypeSelect').value;
+      let selectedUserIds = Array.from(document.querySelectorAll('#userList input[type="checkbox"]:checked'))
+        .map(checkbox => checkbox.value);
+      
+      if (!networkId) {
+        alert('No network selected');
+        return;
+      }
+      
+      // Always include the owner in shared networks
+      if (accessType === 'shared' && currentUserGlobal?.id) {
+        if (!selectedUserIds.includes(currentUserGlobal.id)) {
+          selectedUserIds.push(currentUserGlobal.id);
+          console.log('🔧 Automatically including owner in shared access');
+        }
+      }
+      
+      try {
+        const response = await fetch(`/networks/${networkId}/access`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            accessType: accessType,
+            userIds: accessType === 'shared' ? selectedUserIds : []
+          })
         });
-      });
-
-      const connectionData = connections.map(([a, b]) => ({
-        from: a.dataset.id,
-        to: b.dataset.id
-      }));
-
-      fetch('/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ nodes, connections: connectionData })
-      }).then(res => {
-        if (res.ok) alert("✅ Layout saved!");
-        else alert("❌ Save failed");
-      });
+        
+        if (response.ok) {
+          alert('✅ Network access settings saved successfully!');
+          closeNetworkSettings();
+        } else {
+          alert('❌ Failed to save network access settings');
+        }
+      } catch (error) {
+        console.error('Error saving network access:', error);
+        alert('❌ Error saving network access settings');
+      }
+    };
+    
+    async function loadModalData(networkId) {
+      try {
+        // Load available users
+        const usersResponse = await fetch('/users');
+        if (usersResponse.ok) {
+          const users = await usersResponse.json();
+          populateUserList(users);
+        }
+        
+        // Load current access settings
+        const accessResponse = await fetch(`/networks/${networkId}/access`);
+        if (accessResponse.ok) {
+          const access = await accessResponse.json();
+          console.log('🔍 Access data received:', access);
+          populateAccessInfo(access);
+        }
+      } catch (error) {
+        console.error('Failed to load modal data:', error);
+      }
     }
-
+    
+    function populateUserList(users) {
+      const userList = document.getElementById('userList');
+      userList.innerHTML = '';
+      
+      const currentUserId = currentUserGlobal?.id;
+      
+      users.forEach(user => {
+        const label = document.createElement('label');
+        label.className = 'user-checkbox';
+        
+        // Owner is always included and checked
+        const isOwner = user.id === currentUserId;
+        const isChecked = isOwner;
+        const isDisabled = isOwner;
+        
+        label.innerHTML = `
+          <input type="checkbox" value="${user.id}" ${isChecked ? 'checked' : ''} ${isDisabled ? 'disabled' : ''}>
+          <span>${user.username}</span>
+          <span class="user-role">${user.role}</span>
+          ${isOwner ? ' <span style="color: #66c0f4; font-size: 11px;">(Owner)</span>' : ''}
+        `;
+        userList.appendChild(label);
+      });
+      
+      // Automatically check the owner
+      if (currentUserId) {
+        const ownerCheckbox = userList.querySelector(`input[value="${currentUserId}"]`);
+        if (ownerCheckbox) {
+          ownerCheckbox.checked = true;
+          ownerCheckbox.disabled = true;
+        }
+      }
+    }
+    
+    function populateAccessInfo(access) {
+      const currentAccessGroup = document.getElementById('currentAccessGroup');
+      const currentAccessList = document.getElementById('currentAccessList');
+      
+      if (access && access.length > 0) {
+        currentAccessGroup.style.display = 'block';
+        currentAccessList.innerHTML = '';
+        
+        access.forEach(acc => {
+          const li = document.createElement('li');
+          let displayName = 'Unknown User';
+          
+          if (acc.access_type === 'public') {
+            displayName = 'Public (All Users)';
+          } else if (acc.access_type === 'private') {
+            if (acc.username) {
+              displayName = acc.username;
+            } else if (acc.user_id) {
+              displayName = `User ID: ${acc.user_id}`;
+            } else {
+              displayName = 'Private (Owner Only)';
+            }
+          }
+          
+          li.innerHTML = `
+            <span>${displayName}</span>
+            <span class="access-type">${acc.access_type}</span>
+          `;
+          currentAccessList.appendChild(li);
+        });
+      } else {
+        currentAccessGroup.style.display = 'none';
+      }
+    }
+    
+    // Handle access type change
+    document.getElementById('accessTypeSelect')?.addEventListener('change', function() {
+      const userSelectionGroup = document.getElementById('userSelectionGroup');
+      if (this.value === 'shared') {
+        userSelectionGroup.style.display = 'block';
+      } else {
+        userSelectionGroup.style.display = 'none';
+      }
+    });
+    
+    // Add escape key handler for modal
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') {
+        const modal = document.getElementById('networkSettingsModal');
+        if (modal && modal.style.display === 'block') {
+          closeNetworkSettings();
+        }
+      }
+    });
+    
     window.onload = async function () {
       const config = await fetch('/config').then(r => r.json());
       const palette = document.getElementById('palette');
       config.types.forEach(type => palette.appendChild(createPaletteItem(type)));
-
-      const data = await fetch('/layout').then(r => r.json());
-      const nodeMap = {};
-      data.nodes?.forEach(n => {
-        const node = createNode(n);
-        nodeMap[n.id] = node;
-      });
-      data.connections?.forEach(link => {
-        const from = nodeMap[link.from];
-        const to = nodeMap[link.to];
-        if (from && to) connections.push([from, to]);
-      });
-      drawConnections();
     };
   </script>
 </body>

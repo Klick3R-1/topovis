@@ -1,0 +1,116 @@
+# ========================================
+# Node.js Dependencies & Package Management
+# ========================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+.npm
+.yarn-integrity
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# ========================================
+# Build & Cache Directories
+# ========================================
+dist/
+build/
+out/
+.cache/
+.parcel-cache
+.fusebox/
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+.next
+.nuxt
+.vuepress/dist
+.serverless/
+
+# ========================================
+# Database Files
+# ========================================
+database/
+*.db
+*.sqlite
+*.sqlite3
+
+# ========================================
+# Environment & Configuration
+# ========================================
+.env
+.env.local
+.env.test
+.env.production
+config.local.json
+
+# ========================================
+# Logs & Runtime Data
+# ========================================
+logs/
+*.log
+pids/
+*.pid
+*.seed
+*.pid.lock
+.node_repl_history
+.tern-port
+
+# ========================================
+# Testing & Coverage
+# ========================================
+coverage/
+*.lcov
+.nyc_output
+test-results/
+.vscode-test
+
+# ========================================
+# IDE & Editor Files
+# ========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ========================================
+# OS Generated Files
+# ========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ========================================
+# Temporary & Backup Files
+# ========================================
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+sessions/
+*.session
+
+# ========================================
+# Legacy & Unused
+# ========================================
+.grunt
+bower_components/
+jspm_packages/
+typings/
+*.tsbuildinfo
+*.tgz
+lib-cov
+.dynamodb/
