@@ -1,5 +1,7 @@
 # 🌐 TopoVis v2.0.0 - Advanced Network Topology Visualizer
 
+> 🎉 **Major Release**: Complete rewrite with multi-user support, network access control, and enhanced UI/UX
+
 **TopoVis** is a powerful, feature-rich web application for visualizing, designing, and managing network topologies. Built with Node.js, Express, SQLite, and Alpine.js for a modern, responsive experience.
 
 > ✅ **Enterprise-ready**: Multi-user support, role-based access control, network templates, and persistent storage
@@ -18,6 +20,10 @@
 - 🎨 **Alpine.js Integration**: Modern reactive UI with smooth interactions
 - 🔐 **Role-Based Access Control**: Admin, User, and Read-only roles
 - ⚙️ **Admin Panel**: Comprehensive user and system management
+- 🔒 **Network Access Control**: Private, shared, and public network access levels
+- 👤 **User Sharing**: Grant specific users access to your networks
+- 🎯 **Owner Protection**: Network owners are automatically included in shared access
+- 🚀 **Enhanced UI/UX**: Improved modal system, better error handling, and responsive design
 
 ---
 
@@ -37,6 +43,12 @@
   - **Hetzner**: Server infrastructure with load balancers and databases
   - **Office**: Corporate network with VLANs and security zones
 - **Import/Export**: Share networks via JSON files
+- **Network Access Control**: Three levels of network access
+  - **Private**: Only the network owner can access
+  - **Shared**: Specific users can be granted access
+  - **Public**: All authenticated users can access
+- **User Sharing**: Grant access to specific users with granular control
+- **Owner Protection**: Network owners are automatically included and cannot be removed from shared access
 
 ### 🎨 Visual Editor
 - **Dynamic Node Types**: Configurable device types via settings
@@ -44,6 +56,9 @@
 - **Interactive Canvas**: Click-and-drag positioning, shift+click for connections
 - **Dark Theme**: Professional, eye-friendly interface
 - **Responsive Design**: Works on desktop and tablet devices
+- **Enhanced Modals**: Improved network settings modal with better UX
+- **Real-time Updates**: Alpine.js powered reactive interface
+- **Keyboard Shortcuts**: Escape key to close modals, click-outside-to-close
 
 ### ⚙️ Administration
 - **User Management**: Create, edit, delete users and reset passwords
@@ -156,6 +171,11 @@ Edit device types in the Settings page or modify `config.json`:
 - `GET /networks/:id/export` - Export network to JSON
 - `DELETE /networks/:id` - Delete network
 
+### Network Access Control
+- `GET /networks/:id/access` - Get network access settings
+- `PUT /networks/:id/access` - Update network access settings
+- `GET /users` - List users for network sharing (filtered by role)
+
 ### Admin (Admin only)
 - `GET /admin/users` - List all users
 - `POST /admin/users` - Create new user
@@ -165,9 +185,34 @@ Edit device types in the Settings page or modify `config.json`:
 
 ---
 
-## 🚀 Development
+## 🎨 Enhanced User Experience
 
-### Development Mode
+TopoVis v2.0.0 brings significant improvements to the user interface and experience.
+
+### Modal System Improvements
+
+- **Network Settings Modal**: Comprehensive network access management
+- **Smart Defaults**: Owner automatically included in shared networks
+- **Keyboard Shortcuts**: Escape key to close modals
+- **Click-Outside-to-Close**: Intuitive modal dismissal
+- **Real-time Updates**: Immediate feedback on all changes
+
+### Alpine.js Integration
+
+- **Reactive Interface**: Real-time updates without page refreshes
+- **Component State Management**: Robust state handling for complex operations
+- **Performance**: Lightweight reactivity without heavy framework overhead
+- **Debug Tools**: Comprehensive logging and state inspection
+
+### Responsive Design
+
+- **Mobile-Friendly**: Works seamlessly on tablets and mobile devices
+- **Dark Theme**: Professional, eye-friendly interface
+- **Accessibility**: Clear visual hierarchy and intuitive navigation
+
+---
+
+## 🚀 Development
 ```bash
 npm run dev
 ```
@@ -187,6 +232,32 @@ topovis/
 
 ---
 
+## 🔒 Network Access Control
+
+TopoVis v2.0.0 introduces sophisticated network access control, allowing network owners to precisely manage who can access their networks.
+
+### Access Levels
+
+- **🔒 Private**: Only the network owner can access (default for new networks)
+- **👥 Shared**: Specific users can be granted access by the owner
+- **🌐 Public**: All authenticated users can access the network
+
+### User Sharing Features
+
+- **Selective Access**: Choose exactly which users can access your networks
+- **Owner Protection**: Network owners are automatically included and cannot be removed
+- **Role-Based Filtering**: See only relevant users when setting up sharing
+- **Real-time Updates**: Access changes take effect immediately
+
+### Use Cases
+
+- **Team Collaboration**: Share network designs with team members
+- **Client Presentations**: Grant temporary access to stakeholders
+- **Training**: Allow students to view but not modify networks
+- **Audit Trails**: Track who has access to sensitive network designs
+
+---
+
 ## 🔒 Security Features
 
 - **Password Hashing**: bcrypt with salt
@@ -194,6 +265,8 @@ topovis/
 - **Role-Based Access**: Granular permissions for different user types
 - **Input Validation**: Server-side validation for all inputs
 - **SQL Injection Protection**: Parameterized queries
+- **Network Access Control**: Granular network sharing with user-level permissions
+- **Owner Protection**: Network owners cannot be accidentally locked out
 
 ---
 
@@ -204,6 +277,8 @@ topovis/
 1. **Port Already in Use**: Change the port in `app.js` or kill existing processes
 2. **Database Errors**: Delete `database/topovis.db` to reset the database
 3. **Permission Denied**: Ensure the `database/` directory is writable
+4. **Network Access Issues**: Check that users have proper access permissions
+5. **Modal Display Problems**: Ensure Alpine.js is properly loaded and initialized
 
 ### Debug Mode
 Check browser console for detailed error messages and Alpine.js component state.
@@ -217,6 +292,40 @@ Check browser console for detailed error messages and Alpine.js component state.
 3. Make your changes
 4. Test thoroughly
 5. Submit a pull request
+
+---
+
+## 📋 Changelog
+
+### v2.0.0 (2025-08-29) - Major Release
+
+#### ✨ New Features
+- **Multi-User System**: Complete user management with authentication
+- **Network Access Control**: Private, shared, and public network access levels
+- **User Sharing**: Grant specific users access to networks
+- **Network Templates**: Pre-built templates for common network types
+- **Import/Export**: JSON-based network sharing
+- **Admin Panel**: Comprehensive user and system management
+- **Role-Based Access Control**: Admin, User, and Read-only roles
+
+#### 🔧 Improvements
+- **SQLite Database**: Persistent storage replacing file-based system
+- **Alpine.js Integration**: Modern reactive UI framework
+- **Enhanced Modals**: Improved user experience with better modal system
+- **Owner Protection**: Automatic inclusion of network owners in shared access
+- **Real-time Updates**: Immediate feedback on all operations
+
+#### 🐛 Bug Fixes
+- **Modal Display Issues**: Fixed modal visibility and state management
+- **Network Access**: Resolved 404 errors for shared network access
+- **User Management**: Fixed admin panel functionality and user operations
+- **Template Networks**: Fixed connection creation in template networks
+
+#### 🚀 Technical Improvements
+- **Backend Architecture**: Modular Express.js backend with middleware
+- **Database Schema**: Proper relational database design
+- **Security**: bcrypt password hashing and session management
+- **Error Handling**: Comprehensive error handling and user feedback
 
 ---
 

@@ -74,6 +74,17 @@ db.serialize(() => {
     FOREIGN KEY (network_id) REFERENCES networks (id) ON DELETE CASCADE
   )`);
   
+  // Create network_access table for controlling who can access networks
+  db.run(`CREATE TABLE IF NOT EXISTS network_access (
+    id TEXT PRIMARY KEY,
+    network_id TEXT NOT NULL,
+    access_type TEXT NOT NULL CHECK(access_type IN ('private', 'public')),
+    user_id TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (network_id) REFERENCES networks (id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+  )`);
+  
   // Insert default admin user if not exists
   const hashedPassword = bcrypt.hashSync(PASSWORD, 10);
   db.run(`INSERT OR IGNORE INTO users (id, username, password, role, email) VALUES (?, ?, ?, ?, ?)`, 
@@ -188,6 +199,39 @@ app.get('/user/info', requireAuth, (req, res) => {
   });
 });
 
+// Get all users for network access settings (admin can see all, regular users see other users)
+app.get('/users', requireAuth, (req, res) => {
+  const currentUserId = req.session.userId;
+  
+  // Get current user's role
+  db.get('SELECT role FROM users WHERE id = ?', [currentUserId], (err, currentUser) => {
+    if (err || !currentUser) {
+      res.status(500).json({ error: 'Failed to fetch current user' });
+      return;
+    }
+    
+    let query, params;
+    if (currentUser.role === 'admin') {
+      // Admins can see all users
+      query = 'SELECT id, username, role, email, created_at FROM users ORDER BY username';
+      params = [];
+    } else {
+      // Regular users can see other users (for network sharing)
+      query = 'SELECT id, username, role, email, created_at FROM users WHERE id != ? ORDER BY username';
+      params = [currentUserId];
+    }
+    
+    db.all(query, params, (err, users) => {
+      if (err) {
+        res.status(500).json({ error: 'Failed to fetch users' });
+        return;
+      }
+      
+      res.json(users);
+    });
+  });
+});
+
 // Get all networks for current user
 app.get('/networks', requireAuth, (req, res) => {
   const userId = req.session.userId;
@@ -209,8 +253,25 @@ app.get('/networks', requireAuth, (req, res) => {
         }
       });
     } else {
-      // Regular users only see their own networks
-      db.all('SELECT * FROM networks WHERE user_id = ? ORDER BY created_at DESC', [userId], (err, rows) => {
+      // Regular users see their own networks plus networks they have access to
+      const query = `
+        SELECT DISTINCT n.*, u.username as owner, 
+               CASE 
+                 WHEN n.user_id = ? THEN 'owner'
+                 WHEN na.access_type = 'public' THEN 'public'
+                 WHEN na.access_type = 'private' AND na.user_id = ? THEN 'shared'
+                 ELSE 'none'
+               END as access_level
+        FROM networks n 
+        JOIN users u ON n.user_id = u.id
+        LEFT JOIN network_access na ON n.id = na.network_id
+        WHERE n.user_id = ? 
+           OR na.access_type = 'public' 
+           OR (na.access_type = 'private' AND na.user_id = ?)
+        ORDER BY n.created_at DESC
+      `;
+      
+      db.all(query, [userId, userId, userId, userId], (err, rows) => {
         if (err) {
           console.error('Failed to fetch networks:', err);
           res.status(500).json({ error: 'Failed to fetch networks' });
@@ -228,18 +289,27 @@ app.post('/networks', requireUserOrAdmin, (req, res) => {
   const userId = req.session.userId;
   const networkId = `network-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   
-  db.run(
-    'INSERT INTO networks (id, name, description, type, user_id) VALUES (?, ?, ?, ?, ?)',
-    [networkId, name, description || '', type || 'custom', userId],
-    function(err) {
-      if (err) {
-        console.error('Failed to create network:', err);
-        res.status(500).json({ error: 'Failed to create network' });
-      } else {
-        res.json({ id: networkId, name, description, type, userId });
-      }
-    }
-  );
+        db.run(
+        'INSERT INTO networks (id, name, description, type, user_id) VALUES (?, ?, ?, ?, ?)',
+        [networkId, name, description || '', type || 'custom', userId],
+        function(err) {
+          if (err) {
+            console.error('Failed to create network:', err);
+            res.status(500).json({ error: 'Failed to create network' });
+          } else {
+            // Create default private access for the network owner
+            const accessId = `access-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            db.run('INSERT INTO network_access (id, network_id, access_type, user_id) VALUES (?, ?, ?, ?)', 
+              [accessId, networkId, 'private', userId], (err) => {
+              if (err) {
+                console.error('Failed to create default access settings:', err);
+              }
+            });
+            
+            res.json({ id: networkId, name, description, type, userId });
+          }
+        }
+      );
 });
 
 // Create network from template
@@ -248,21 +318,30 @@ app.post('/networks/template', requireUserOrAdmin, (req, res) => {
   const userId = req.session.userId;
   const networkId = `network-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   
-  // Create network first
-  db.run(
-    'INSERT INTO networks (id, name, description, type, user_id) VALUES (?, ?, ?, ?, ?)',
-    [networkId, name, `Template: ${template}`, template, userId],
-    function(err) {
-      if (err) {
-        console.error('Failed to create template network:', err);
-        res.status(500).json({ error: 'Failed to create template network' });
-      } else {
-        // Add template nodes and connections
-        const templateData = getTemplateData(template);
-        insertTemplateData(networkId, templateData, res);
-      }
-    }
-  );
+          // Create network first
+        db.run(
+          'INSERT INTO networks (id, name, description, type, user_id) VALUES (?, ?, ?, ?, ?)',
+          [networkId, name, `Template: ${template}`, template, userId],
+          function(err) {
+            if (err) {
+              console.error('Failed to create template network:', err);
+              res.status(500).json({ error: 'Failed to create template network' });
+            } else {
+              // Create default private access for the network owner
+              const accessId = `access-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+              db.run('INSERT INTO network_access (id, network_id, access_type, user_id) VALUES (?, ?, ?, ?)', 
+                [accessId, networkId, 'private', userId], (err) => {
+                if (err) {
+                  console.error('Failed to create default access settings:', err);
+                }
+              });
+              
+              // Add template nodes and connections
+              const templateData = getTemplateData(template);
+              insertTemplateData(networkId, templateData, res);
+            }
+          }
+        );
 });
 
 // Get network layout
@@ -276,23 +355,29 @@ app.get('/networks/:id/layout', requireAuth, (req, res) => {
       return res.status(500).json({ error: 'User not found' });
     }
     
-    let query, params;
+    // Check if user has access to this network
     if (user.role === 'admin') {
       // Admins can access any network
-      query = 'SELECT id FROM networks WHERE id = ?';
-      params = [networkId];
+      db.get('SELECT id FROM networks WHERE id = ?', [networkId], (err, network) => {
+        if (err || !network) {
+          res.status(404).json({ error: 'Network not found' });
+          return;
+        }
+        fetchNetworkData(network);
+      });
     } else {
-      // Regular users can only access their own networks
-      query = 'SELECT id FROM networks WHERE id = ? AND user_id = ?';
-      params = [networkId, userId];
+      // Check if user owns the network or has been granted access
+      db.get('SELECT n.id FROM networks n LEFT JOIN network_access na ON n.id = na.network_id WHERE n.id = ? AND (n.user_id = ? OR na.user_id = ? OR na.access_type = "public")', 
+        [networkId, userId, userId], (err, network) => {
+        if (err || !network) {
+          res.status(404).json({ error: 'Network not found or access denied' });
+          return;
+        }
+        fetchNetworkData(network);
+      });
     }
     
-    db.get(query, params, (err, network) => {
-      if (err || !network) {
-        res.status(404).json({ error: 'Network not found' });
-        return;
-      }
-      
+    function fetchNetworkData(network) {
       // Get nodes and connections
       db.all('SELECT * FROM nodes WHERE network_id = ?', [networkId], (err, nodes) => {
         if (err) {
@@ -328,7 +413,7 @@ app.get('/networks/:id/layout', requireAuth, (req, res) => {
           res.json(layoutData);
         });
       });
-    });
+    }
   });
 });
 
@@ -344,22 +429,29 @@ app.post('/networks/:id/save', requireUserOrAdmin, (req, res) => {
       return res.status(500).json({ error: 'User not found' });
     }
     
-    let query, params;
+    // Check if user has access to edit this network
     if (user.role === 'admin') {
       // Admins can edit any network
-      query = 'SELECT id FROM networks WHERE id = ?';
-      params = [networkId];
+      db.get('SELECT id FROM networks WHERE id = ?', [networkId], (err, network) => {
+        if (err || !network) {
+          res.status(404).json({ error: 'Network not found' });
+          return;
+        }
+        proceedWithSave(network);
+      });
     } else {
-      // Regular users can only edit their own networks
-      query = 'SELECT id FROM networks WHERE id = ? AND user_id = ?';
-      params = [networkId, userId];
+      // Check if user owns the network or has been granted access
+      db.get('SELECT n.id FROM networks n LEFT JOIN network_access na ON n.id = na.network_id WHERE n.id = ? AND (n.user_id = ? OR na.user_id = ? OR na.access_type = "public")', 
+        [networkId, userId, userId], (err, network) => {
+        if (err || !network) {
+          res.status(404).json({ error: 'Network not found or access denied' });
+          return;
+        }
+        proceedWithSave(network);
+      });
     }
     
-    db.get(query, params, (err, network) => {
-      if (err || !network) {
-        res.status(404).json({ error: 'Network not found' });
-        return;
-      }
+    function proceedWithSave(network) {
       
       // Clear existing data
       db.run('DELETE FROM nodes WHERE network_id = ?', [networkId], (err) => {
@@ -413,7 +505,7 @@ app.post('/networks/:id/save', requireUserOrAdmin, (req, res) => {
           res.json({ success: true });
         });
       });
-    });
+    }
   });
 });
 
@@ -525,6 +617,109 @@ app.delete('/networks/:id', requireUserOrAdmin, (req, res) => {
           res.json({ success: true });
         }
       });
+    });
+  });
+});
+
+// Get network access settings
+app.get('/networks/:id/access', requireAuth, (req, res) => {
+  const networkId = req.params.id;
+  const userId = req.session.userId;
+  
+  // Get user role and verify network access
+  db.get('SELECT role FROM users WHERE id = ?', [userId], (err, user) => {
+    if (err || !user) {
+      return res.status(500).json({ error: 'User not found' });
+    }
+    
+    // Check if user owns the network or is admin
+    db.get('SELECT * FROM networks WHERE id = ? AND (user_id = ? OR ? = "admin")', [networkId, userId, user.role], (err, network) => {
+      if (err || !network) {
+        res.status(404).json({ error: 'Network not found or access denied' });
+        return;
+      }
+      
+      // Get current access settings
+      db.all('SELECT na.*, u.username FROM network_access na LEFT JOIN users u ON na.user_id = u.id WHERE na.network_id = ?', [networkId], (err, access) => {
+        if (err) {
+          res.status(500).json({ error: 'Failed to fetch access settings' });
+          return;
+        }
+        
+        res.json(access);
+      });
+    });
+  });
+});
+
+// Update network access settings
+app.put('/networks/:id/access', requireAuth, (req, res) => {
+  const networkId = req.params.id;
+  const userId = req.session.userId;
+  const { accessType, userIds } = req.body;
+  
+  // Get user role and verify network ownership
+  db.get('SELECT role FROM users WHERE id = ?', [userId], (err, user) => {
+    if (err || !user) {
+      return res.status(500).json({ error: 'User not found' });
+    }
+    
+    // Check if user owns the network or is admin
+    db.get('SELECT * FROM networks WHERE id = ? AND (user_id = ? OR ? = "admin")', [networkId, userId, user.role], (err, network) => {
+      if (err || !network) {
+        res.status(404).json({ error: 'Network not found or access denied' });
+        return;
+      }
+      
+              // Clear existing access settings
+        db.run('DELETE FROM network_access WHERE network_id = ?', [networkId], (err) => {
+          if (err) {
+            res.status(500).json({ error: 'Failed to update access settings' });
+            return;
+          }
+          
+          if (accessType === 'public') {
+            // Add public access entry
+            const accessId = `access-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            db.run('INSERT INTO network_access (id, network_id, access_type) VALUES (?, ?, ?)', 
+              [accessId, networkId, 'public'], (err) => {
+              if (err) {
+                res.status(500).json({ error: 'Failed to update access settings' });
+              } else {
+                res.json({ success: true, message: 'Network is now public' });
+              }
+            });
+          } else if (accessType === 'shared' && userIds && userIds.length > 0) {
+            // Add private access for specific users
+            const accessPromises = userIds.map(userId => {
+              const accessId = `access-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+              return new Promise((resolve, reject) => {
+                db.run('INSERT INTO network_access (id, network_id, access_type, user_id) VALUES (?, ?, ?, ?)', 
+                  [accessId, networkId, 'private', userId], (err) => {
+                  if (err) reject(err);
+                  else resolve();
+                });
+              });
+            });
+            
+            Promise.all(accessPromises).then(() => {
+              res.json({ success: true, message: 'Network access updated' });
+            }).catch(err => {
+              res.status(500).json({ error: 'Failed to update access settings' });
+            });
+          } else {
+            // Default to private with no specific users (owner only)
+            const accessId = `access-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            db.run('INSERT INTO network_access (id, network_id, access_type) VALUES (?, ?, ?)', 
+              [accessId, networkId, 'private'], (err) => {
+              if (err) {
+                res.status(500).json({ error: 'Failed to update access settings' });
+              } else {
+                res.json({ success: true, message: 'Network access updated' });
+              }
+            });
+          }
+        });
     });
   });
 });
