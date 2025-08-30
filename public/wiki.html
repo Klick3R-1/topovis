@@ -612,13 +612,10 @@
     // Load user networks on page load
     window.onload = async function() {
       try {
-        console.log('🚀 Wiki page loading...');
-        
         // Small delay to ensure page is fully loaded
         await new Promise(resolve => setTimeout(resolve, 100));
         
         await loadUserNetworks();
-        console.log('✅ Wiki page loaded successfully');
       } catch (error) {
         console.error('❌ Page initialization failed:', error);
         // Show error message instead of redirecting
@@ -632,24 +629,19 @@
 
     async function loadUserNetworks() {
       try {
-        console.log('🌐 Loading user networks...');
-        
         // First get current user info
         const userResponse = await fetch('/user/info', { credentials: 'include' });
         if (!userResponse.ok) {
           throw new Error('Authentication required');
         }
         currentUser = await userResponse.json();
-        console.log('✅ User authenticated:', currentUser.username);
         
         // Then load networks
         const response = await fetch('/networks', { credentials: 'include' });
-        console.log('🌐 Networks response status:', response.status);
         
         if (!response.ok) throw new Error('Failed to load networks');
         
         const networks = await response.json();
-        console.log('🌐 Networks loaded:', networks.length);
         
         const select = document.getElementById('networkSelect');
         select.innerHTML = '<option value="">Select Network...</option>';
@@ -660,14 +652,11 @@
           option.textContent = network.name;
           select.appendChild(option);
         });
-        
-        console.log('✅ Networks dropdown populated');
       } catch (error) {
         console.error('❌ Failed to load networks:', error);
         if (error.message === 'Authentication required') {
           // Redirect to login only for auth errors
           if (window.location.pathname !== '/login') {
-            console.log('🔐 Redirecting to login...');
             window.location.href = '/login';
           }
         }
@@ -695,19 +684,11 @@
         const networkData = await response.json();
         currentNetwork = networkData;
         
-        console.log('🌐 Network data received:', networkData);
-        console.log('🌐 Root node:', networkData.rootNode);
-        console.log('🌐 All nodes:', networkData.nodes);
-        console.log('🌐 All connections:', networkData.connections);
-        
         // Build and display tree
-        console.log('🌳 About to build network tree...');
         buildNetworkTree(networkData);
-        console.log('🌳 Network tree built');
         
         // Show root node by default
         if (networkData.rootNode) {
-          console.log('🌳 Showing root node page:', networkData.rootNode.id);
           showNodePage(networkData.rootNode.id);
         }
       } catch (error) {
@@ -722,7 +703,6 @@
 
     function buildNetworkTree(networkData) {
       const treeContainer = document.getElementById('networkTree');
-      console.log('🌳 Tree container found:', treeContainer);
       
       treeContainer.innerHTML = '';
       
@@ -731,39 +711,25 @@
         return;
       }
       
-      console.log('🌳 Building tree for root node:', networkData.rootNode);
       const treeHtml = buildTreeNode(networkData.rootNode, networkData.nodes, networkData.connections, new Set(), true);
-      console.log('🌳 Generated tree HTML length:', treeHtml.length);
-      console.log('🌳 Tree HTML preview:', treeHtml.substring(0, 200) + '...');
       
       treeContainer.innerHTML = treeHtml;
-      console.log('🌳 Tree HTML inserted into DOM');
       
       // Add click handlers
       addTreeClickHandlers();
-      console.log('🌳 Click handlers added');
     }
 
     function buildTreeNode(node, allNodes, connections, visitedNodes, isRoot = false) {
-      console.log('🌳 Building tree node for:', node.type, node.name || 'Unnamed', 'ID:', node.id);
-      
       // Check if we've already visited this node to prevent infinite loops
       if (visitedNodes.has(node.id)) {
-        console.log('🌳 Node already visited, skipping:', node.id);
         return '';
       }
       
       // Mark this node as visited
       visitedNodes.add(node.id);
-      console.log('🌳 Marked node as visited:', node.id, 'Total visited:', visitedNodes.size);
       
       const children = getNodeChildren(node.id, connections, allNodes);
       const hasChildren = children.length > 0;
-      
-      console.log('🌳 Node has children:', hasChildren, 'Count:', children.length);
-      if (hasChildren) {
-        console.log('🌳 Children:', children.map(c => `${c.type} - ${c.name || 'Unnamed'}`));
-      }
       
       let html = `
         <div class="tree-node ${isRoot ? 'active' : ''}" data-node-id="${node.id}">
@@ -803,15 +769,11 @@
       
       // For your network structure, the logical flow is:
       // Router → Switch → PC (Router connects TO Switch, Switch connects TO PC)
-      console.log('🔍 Getting children for node:', nodeId);
-      console.log('🔍 Outgoing connections:', outgoingConnections.map(n => `${n.type} - ${n.name || 'Unnamed'}`));
-      console.log('🔍 Incoming connections:', incomingConnections.map(n => `${n.type} - ${n.name || 'Unnamed'}`));
       
       // Children are nodes that this node connects TO (outgoing connections)
       // This makes sense for network topology: Router → Switch → PC
       const node = allNodes.find(n => n.id === nodeId);
       if (node) {
-        console.log('🔍 Node type:', node.type, '- Using outgoing connections as children');
         return outgoingConnections;
       } else {
         return [];
@@ -825,7 +787,6 @@
       
       // Check if children container exists and has the right class
       if (!childrenContainer || !childrenContainer.classList.contains('tree-children')) {
-        console.log('⚠️ No children container found for toggle');
         return;
       }
       

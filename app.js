@@ -1803,23 +1803,15 @@ async function getNetworkWikiData(networkId) {
           db.get('SELECT root_node_id FROM network_root_nodes WHERE network_id = ?', [networkId], (err, rootConfig) => {
             let rootNode = null;
             
-            console.log('🔍 Root node config for network', networkId, ':', rootConfig);
-            
             if (rootConfig && rootConfig.root_node_id) {
               // Use configured root node
               rootNode = nodes.find(n => n.id === rootConfig.root_node_id);
-              console.log('🔍 Using configured root node:', rootNode);
             }
             
             // Fallback to auto-detection if no configured root
             if (!rootNode) {
               rootNode = findRootNode(nodes, connections);
-              console.log('🔍 Using auto-detected root node:', rootNode);
             }
-            
-            console.log('🔍 Final root node:', rootNode);
-            console.log('🔍 All nodes:', nodes.map(n => `${n.type} - ${n.name || 'Unnamed'} (${n.id})`));
-            console.log('🔍 All connections:', connections.map(c => `${c.from_node_id} -> ${c.to_node_id}`));
             
             resolve({
               id: network.id,
@@ -1838,22 +1830,17 @@ async function getNetworkWikiData(networkId) {
 
 // Helper function to find root node
 function findRootNode(nodes, connections) {
-  console.log('🔍 Finding root node with connections:', connections);
-  
   // Get all nodes that have incoming connections
   const nodesWithIncoming = new Set(connections.map(conn => conn.to_node_id));
-  console.log('🔍 Nodes with incoming connections:', Array.from(nodesWithIncoming));
   
   // Find nodes that don't have incoming connections (potential roots)
   const potentialRoots = nodes.filter(node => !nodesWithIncoming.has(node.id));
-  console.log('🔍 Potential root nodes:', potentialRoots.map(n => `${n.type} - ${n.name || 'Unnamed'}`));
   
   // If multiple potential roots, prefer nodes with outgoing connections
   if (potentialRoots.length > 1) {
     const rootsWithOutgoing = potentialRoots.filter(node => 
       connections.some(conn => conn.from_node_id === node.id)
     );
-    console.log('🔍 Roots with outgoing connections:', rootsWithOutgoing.map(n => `${n.type} - ${n.name || 'Unnamed'}`));
     if (rootsWithOutgoing.length > 0) {
       return rootsWithOutgoing[0];
     }
@@ -1868,11 +1855,9 @@ function findRootNode(nodes, connections) {
   });
   
   if (hubNodes.length > 0) {
-    console.log('🔍 Found hub node:', hubNodes[0]);
     return hubNodes[0];
   }
   
-  console.log('🔍 No hub found, returning first potential root:', potentialRoots[0]);
   return potentialRoots[0] || null;
 }
 

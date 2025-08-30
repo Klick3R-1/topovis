@@ -62,109 +62,170 @@
     
     .content {
       padding: 2em;
+      max-width: 1200px;
+      margin: 0 auto;
     }
+    
     h1 {
       color: #66c0f4;
     }
-    .form-group {
+    
+    h2 {
+      color: #66c0f4;
+      margin-top: 2em;
       margin-bottom: 1em;
+      padding-bottom: 0.5em;
+      border-bottom: 2px solid #333;
+    }
+    
+    .form-group {
+      margin-bottom: 2em;
+      background: #1e1e1e;
+      padding: 1.5em;
+      border-radius: 8px;
+      border: 1px solid #333;
     }
     input[type="text"] {
-      padding: 8px;
+      padding: 12px 16px;
       font-size: 14px;
       background: #1c1c1c;
       border: 1px solid #444;
       color: #eee;
-      border-radius: 4px;
-      width: 200px;
+      border-radius: 6px;
+      width: 250px;
+      transition: all 0.3s ease;
     }
+    
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #66c0f4;
+      box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
+      background: #2a2a2a;
+    }
+    
     button {
-      padding: 8px 16px;
+      padding: 12px 20px;
       background: #2c2f33;
       border: 1px solid #555;
       color: #eee;
       cursor: pointer;
-      border-radius: 4px;
+      border-radius: 6px;
       margin-left: 8px;
+      transition: all 0.3s ease;
+      font-weight: 500;
     }
+    
     button:hover {
       background: #3c3f44;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
+    
     button.delete-btn {
       background: #ff6b6b;
       border-color: #ff5252;
     }
+    
     button.delete-btn:hover {
       background: #ff5252;
     }
     ul {
       list-style: none;
       padding: 0;
+      margin-top: 1em;
     }
+    
     li {
       margin: 8px 0;
-      padding: 8px;
+      padding: 16px;
       background: #2c2f33;
-      border-radius: 4px;
+      border-radius: 8px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      border: 1px solid #444;
+      transition: all 0.3s ease;
     }
+    
+    li:hover {
+      background: #3c3f44;
+      border-color: #555;
+      transform: translateX(4px);
+    }
+    .templates-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 1.5em;
+      margin-top: 1em;
+    }
+    
     .template-card {
       background: #2c2f33;
       border: 1px solid #555;
       border-radius: 8px;
-      padding: 1em;
-      margin: 1em 0;
-      max-width: 400px;
+      padding: 1.5em;
+      transition: all 0.3s ease;
+      border-left: 4px solid #66c0f4;
     }
+    
+    .template-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+      border-left-color: #4a9eff;
+    }
+    
     .template-card h3 {
       margin-top: 0;
       color: #66c0f4;
+      font-size: 1.2em;
     }
+    
     .template-card p {
       color: #ccc;
-      margin-bottom: 1em;
+      margin-bottom: 1.5em;
+      line-height: 1.5;
     }
     .status-message {
-      padding: 12px;
-      border-radius: 4px;
-      margin: 1em 0;
+      padding: 16px;
+      border-radius: 8px;
+      margin: 1.5em 0;
       text-align: center;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
+    
     .status-message.success {
       background: #4caf50;
       color: white;
     }
+    
     .status-message.error {
       background: #f44336;
       color: white;
     }
+    
     .warning {
       background: #ff9800;
       color: black;
-      padding: 12px;
-      border-radius: 4px;
-      margin: 1em 0;
+      padding: 16px;
+      border-radius: 8px;
+      margin: 1.5em 0;
       text-align: center;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
-    a {
-      color: #66c0f4;
-      display: inline-block;
-      margin-top: 1em;
-      text-decoration: none;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
+
     
     .badge {
       display: inline-block;
-      padding: 2px 6px;
-      border-radius: 3px;
-      font-size: 0.8em;
-      font-weight: bold;
-      margin-left: 8px;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.75em;
+      font-weight: 600;
+      margin-left: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
     
     .badge.default {
@@ -196,18 +257,16 @@
   </div>
 
   <div class="content">
-    <h1>⚙️ Settings</h1>
-
-  <!-- Device Types Section -->
-  <div class="form-group">
-    <h2>Device Types</h2>
+    <!-- Device Types Section -->
+    <div class="form-group">
+      <h2>Device Types</h2>
     
     <!-- Readonly warning -->
     <div x-show="currentUser?.role === 'readonly'" class="warning">
       👁️ Read-only users cannot modify device types
     </div>
     
-    <form x-show="currentUser?.role !== 'readonly'" @submit.prevent="addNodeType()">
+    <form x-show="currentUser?.role !== 'readonly'" @submit.prevent="addNodeType()" style="display: flex; gap: 12px; align-items: center; margin-bottom: 1em;">
       <input type="text" x-model="newNodeType" placeholder="New device type..." required />
       <button type="submit">➕ Add Type</button>
     </form>
@@ -237,39 +296,37 @@
       👁️ Read-only users cannot create new networks
     </div>
     
-    <div class="template-card">
-      <h3>🏠 LAN Network</h3>
-      <p>Standard local area network with router, switches, and workstations</p>
-      <button x-show="currentUser?.role !== 'readonly'" 
-              @click="createTemplate('lan')" 
-              style="background: #4caf50;">Create LAN Network</button>
+    <div class="templates-grid">
+      <div class="template-card">
+        <h3>🏠 LAN Network</h3>
+        <p>Standard local area network with router, switches, and workstations</p>
+        <button x-show="currentUser?.role !== 'readonly'" 
+                @click="createTemplate('lan')" 
+                style="background: #4caf50;">Create LAN Network</button>
+      </div>
+      
+      <div class="template-card">
+        <h3>☁️ Hetzner Cloud</h3>
+        <p>Cloud infrastructure with load balancer, web servers, and database</p>
+        <button x-show="currentUser?.role !== 'readonly'" 
+                @click="createTemplate('hetzner')" 
+                style="background: #2196f3;">Create Hetzner Network</button>
+      </div>
+      
+      <div class="template-card">
+        <h3>🏢 Office Network</h3>
+        <p>Corporate network with VLANs, firewall, and role-based access</p>
+        <button x-show="currentUser?.role !== 'readonly'" 
+                @click="createTemplate('office')" 
+                style="background: #ff9800;">Create Office Network</button>
+      </div>
     </div>
-    
-    <div class="template-card">
-      <h3>☁️ Hetzner Cloud</h3>
-      <p>Cloud infrastructure with load balancer, web servers, and database</p>
-      <button x-show="currentUser?.role !== 'readonly'" 
-              @click="createTemplate('hetzner')" 
-              style="background: #2196f3;">Create Hetzner Network</button>
-    </div>
-    
-    <div class="template-card">
-      <h3>🏢 Office Network</h3>
-      <p>Corporate network with VLANs, firewall, and role-based access</p>
-      <button x-show="currentUser?.role !== 'readonly'" 
-              @click="createTemplate('office')" 
-              style="background: #ff9800;">Create Office Network</button>
-    </div>
-    
-
   </div>
 
   <!-- Status Messages -->
   <div x-show="message" 
        :class="`status-message ${messageType}`" 
        x-text="message"></div>
-
-  <a href="/">← Back to Editor</a>
   </div> <!-- Close content div -->
 
   <script>

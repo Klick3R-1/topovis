@@ -420,7 +420,7 @@
   <div class="users-section">
     <div class="users-header">
       <h2>👥 User Management</h2>
-      <button class="add-user-btn" @click="console.log('Add User clicked'); showCreateModal = true">➕ Add User</button>
+              <button class="add-user-btn" @click="showCreateModal = true">➕ Add User</button>
     </div>
 
     <table>
@@ -517,15 +517,7 @@
     </table>
   </div>
 
-  <!-- Debug Info -->
-  <div style="background: #1e1e1e; padding: 1em; margin: 1em 0; border-radius: 4px; font-family: monospace; font-size: 12px;">
-    <strong>Debug Info:</strong><br>
-    showCreateModal: <span x-text="showCreateModal"></span><br>
-    showEditModal: <span x-text="showEditModal"></span><br>
-    showResetModal: <span x-text="showResetModal"></span><br>
-    Users loaded: <span x-text="users.length"></span><br>
-    Networks loaded: <span x-text="networks.length"></span>
-  </div>
+
 
   <!-- Status Messages -->
   <div x-show="message" 
@@ -657,13 +649,11 @@
         messageType: 'success',
         
         async init() {
-          console.log('🚀 Admin component initializing...');
           await this.loadCurrentUser();
           await this.loadUsers();
           await this.loadNetworks();
           await this.loadDeviceTypes();
           await this.loadUserTypesToPromote();
-          console.log('✅ Admin component initialized');
         },
         
         async loadCurrentUser() {
@@ -724,7 +714,6 @@
         },
         
         async createUser() {
-          console.log('Creating user with data:', this.editingUser);
           try {
             const response = await fetch('/admin/users', {
               method: 'POST',
@@ -827,11 +816,6 @@
         },
         
         closeModal() {
-          console.log('Closing modal, current state:', {
-            showCreateModal: this.showCreateModal,
-            showEditModal: this.showEditModal,
-            showResetModal: this.showResetModal
-          });
           this.showCreateModal = false;
           this.showEditModal = false;
           this.showResetModal = false;
@@ -841,11 +825,6 @@
             role: 'user',
             email: ''
           };
-          console.log('Modal closed, new state:', {
-            showCreateModal: this.showCreateModal,
-            showEditModal: this.showEditModal,
-            showResetModal: this.showResetModal
-          });
         },
         
         async promoteDeviceType(type) {

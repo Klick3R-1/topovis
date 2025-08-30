@@ -381,18 +381,12 @@
       <div x-show="currentUser" style="font-weight: bold;" x-text="currentUser?.username || 'Unknown'"></div>
       <div x-show="currentUser" style="font-size: 11px; color: #999;" x-text="currentUser?.role || 'Unknown'"></div>
       
-      <!-- Test button for debugging -->
       <button x-show="!currentUser" @click="loadUserInfo()" 
               style="margin-top: 5px; padding: 2px 6px; font-size: 10px; background: #444;">
         🔄 Reload User Info
       </button>
       
-      <!-- Debug info for network settings -->
-      <div x-show="currentNetworkId" style="margin-top: 5px; padding: 4px; background: #333; border-radius: 3px; font-size: 10px;">
-        <div>Network ID: <span x-text="currentNetworkId"></span></div>
-        <div>Modal State: <span x-text="showNetworkSettings"></span></div>
-        <div>Access Settings: <span x-text="networkAccessSettings ? 'Loaded' : 'Not Loaded'"></span></div>
-      </div>
+
     </div>
     
     <!-- Network Selector -->
@@ -455,13 +449,7 @@
           <span class="close" onclick="closeNetworkSettings()">&times;</span>
         </div>
         
-        <!-- Debug info in modal -->
-        <div style="background: #1c1c1c; padding: 8px; margin-bottom: 1em; border-radius: 4px; font-size: 12px;">
-          <strong>Debug:</strong> Modal is visible! Network ID: <span id="modalNetworkId"></span>
-          <br>Modal State: <span id="modalState"></span>
-          <br>Modal Element: <span>Modal div exists</span>
-          <br>Modal CSS: <span>Modal CSS applied</span>
-        </div>
+
       
       <div class="modal-body">
         <div class="form-group">
@@ -532,8 +520,6 @@
         availableUsers: [],
         selectedUserIds: [],
         async init() {
-          console.log('🔄 Initializing sidebar data...');
-          
           // Ensure modal starts in closed state
           this.showNetworkSettings = false;
           
@@ -546,13 +532,9 @@
             this.currentNetworkId = networkId;
             this.switchNetwork(networkId);
           }
-          console.log('✅ Sidebar initialization complete. Current user:', this.currentUser);
-          console.log('🔧 Network settings modal state:', this.showNetworkSettings);
-          console.log('🔧 Current network ID:', this.currentNetworkId);
           
           // Set global flag that component is ready
           alpineComponentReady = true;
-          console.log('✅ Alpine.js component marked as ready');
           
           // Update global variables
           this.updateGlobalVariables();
@@ -562,34 +544,16 @@
           this.$watch('currentNetworkId', () => this.updateGlobalVariables());
           this.$watch('removeMode', () => this.updateGlobalVariables());
           this.$watch('showNetworkSettings', (value) => {
-            console.log('🔧 Modal state changed to:', value);
-            if (value === true) {
-              console.log('🔧 Modal opened - checking why...');
-              console.trace('Modal state change stack trace');
-            }
+            // Modal state change handler
           });
           
           // Watch for network ID changes
           this.$watch('currentNetworkId', (value) => {
-            console.log('🔧 Network ID changed to:', value);
-            console.log('🔧 Modal should show:', this.showNetworkSettings && value);
+            // Network ID change handler
           });
           
           // Add escape key listener
           document.addEventListener('keydown', this.handleEscape.bind(this));
-          
-          // Debug: Check modal state after initialization
-          setTimeout(() => {
-            console.log('🔍 Post-init modal check:');
-            console.log('  - showNetworkSettings:', this.showNetworkSettings);
-            console.log('  - currentNetworkId:', this.currentNetworkId);
-            console.log('  - Modal element exists:', !!document.querySelector('.modal'));
-            const modal = document.querySelector('.modal');
-            if (modal) {
-              console.log('  - Modal computed display:', window.getComputedStyle(modal).display);
-              console.log('  - Modal x-show condition:', this.showNetworkSettings && this.currentNetworkId);
-            }
-          }, 500);
         },
         
         async loadNetworkNodesForRoot() {
@@ -695,7 +659,6 @@
           currentUserGlobal = this.currentUser;
           currentNetworkIdGlobal = this.currentNetworkId;
           removeModeGlobal = this.removeMode;
-          console.log('Global variables updated:', { currentUserGlobal, currentNetworkIdGlobal, removeModeGlobal });
         },
         
         async loadNetworks() {
@@ -714,7 +677,6 @@
             const response = await fetch('/user/info');
             if (response.ok) {
               this.currentUser = await response.json();
-              console.log('User info loaded:', this.currentUser);
             }
           } catch (error) {
             console.error('Failed to load user info:', error);
@@ -733,11 +695,7 @@
         },
         
         async openNetworkSettings() {
-          console.log('🔧 Opening network settings...');
-          console.log('Current network ID:', this.currentNetworkId);
-          
           if (!this.currentNetworkId) {
-            console.log('❌ No network selected');
             alert('Please select a network first');
             return;
           }
@@ -745,44 +703,15 @@
           // Ensure modal state is properly set
           this.showNetworkSettings = true;
           this.selectedUserIds = [];
-          console.log('✅ Modal state set to true');
-          console.log('✅ Current network ID confirmed:', this.currentNetworkId);
-          
-          // Debug: Check if modal element exists and is visible
-          setTimeout(() => {
-            const modal = document.querySelector('.modal');
-            console.log('🔍 Modal element found:', modal);
-            if (modal) {
-              console.log('🔍 Modal display style:', window.getComputedStyle(modal).display);
-              console.log('🔍 Modal visibility:', window.getComputedStyle(modal).visibility);
-              console.log('🔍 Modal z-index:', window.getComputedStyle(modal).zIndex);
-              console.log('🔍 Modal position:', window.getComputedStyle(modal).position);
-              console.log('🔍 Modal x-show value:', modal.getAttribute('x-show'));
-              console.log('🔍 Modal x-cloak attribute:', modal.hasAttribute('x-cloak'));
-              console.log('🔍 Modal computed x-show result:', modal.style.display !== 'none');
-              
-              // Additional debugging
-              console.log('🔍 Alpine.js x-show evaluation:', this.showNetworkSettings && this.currentNetworkId);
-              console.log('🔍 showNetworkSettings value:', this.showNetworkSettings);
-              console.log('🔍 currentNetworkId value:', this.currentNetworkId);
-              
-              // Check modal style attribute
-              console.log('🔍 Modal style attribute:', modal.getAttribute('style'));
-              console.log('🔍 Modal inline style display:', modal.style.display);
-              console.log('🔍 Modal computed style display:', window.getComputedStyle(modal).display);
-            }
-          }, 100);
           
           // Load available users
           await this.loadAvailableUsers();
-          console.log('✅ Users loaded:', this.availableUsers.length);
           
           // Load current access settings
           try {
             const response = await fetch(`/networks/${this.currentNetworkId}/access`);
             if (response.ok) {
               const access = await response.json();
-              console.log('✅ Access settings loaded:', access);
               this.networkAccessSettings = {
                 accessType: access.length === 0 ? 'private' : 
                            (access[0].access_type === 'public' ? 'public' : 'shared'),
@@ -845,7 +774,6 @@
         },
         
         closeNetworkSettings() {
-          console.log('🔧 Closing network settings modal');
           this.showNetworkSettings = false;
           this.networkAccessSettings = null;
           this.selectedUserIds = [];
@@ -861,7 +789,6 @@
         async switchNetwork(networkId) {
           if (!networkId) return;
           this.currentNetworkId = networkId;
-          console.log('Switching to network:', networkId);
           
           // Ensure modal is closed when switching networks
           this.showNetworkSettings = false;
@@ -1129,7 +1056,6 @@
         const sidebarElement = document.querySelector('#sidebar');
         if (!sidebarElement) {
           if (attempt === maxRetries) {
-            console.log('Sidebar element not found after', maxRetries, 'attempts');
             return null;
           }
           continue;
@@ -1147,11 +1073,6 @@
         
         if (!componentData) {
           if (attempt === maxRetries) {
-            console.log('Alpine.js component data not available after', maxRetries, 'attempts');
-            console.log('Element properties:', Object.keys(sidebarElement));
-            console.log('__x:', sidebarElement.__x);
-            console.log('_x_dataStack:', sidebarElement._x_dataStack);
-            console.log('_x:', sidebarElement._x);
             return null;
           }
           // Wait a bit before retrying
@@ -1251,7 +1172,6 @@
     lineCanvas.addEventListener('click', (e) => {
       // Check if Alpine.js component is ready
       if (!isComponentReady()) {
-        console.log('Component not ready, operation cancelled');
         return;
       }
       
@@ -1260,7 +1180,6 @@
       
       // Check if user can delete (not readonly)
       if (!currentUserGlobal) {
-        console.log('User data not available, operation cancelled');
         return;
       }
       
@@ -1310,7 +1229,6 @@
       node.onclick = async function(e) {
         // Check if Alpine.js component is ready
         if (!isComponentReady()) {
-          console.log('Component not ready, operation cancelled');
           return;
         }
         
@@ -1319,7 +1237,6 @@
         
         // Check if user can delete (not readonly)
         if (!currentUserGlobal) {
-          console.log('User data not available, operation cancelled');
           return;
         }
         
@@ -1331,10 +1248,8 @@
         // Check if node has documentation before deleting
         const nodeId = node.dataset.id;
         if (nodeId) {
-          console.log('🔍 Node has ID, checking documentation before deletion');
           await checkNodeDocumentation(nodeId, () => {
             // Proceed with deletion after confirmation
-            console.log('🗑️ Proceeding with node deletion');
             connections.forEach((pair, idx) => {
               if (pair[0] === node || pair[1] === node) connections.splice(idx, 1);
             });
@@ -1342,7 +1257,6 @@
             drawConnections();
           });
         } else {
-          console.log('🔍 No node ID found, proceeding with immediate deletion');
           // No node ID, proceed with deletion
           connections.forEach((pair, idx) => {
             if (pair[0] === node || pair[1] === node) connections.splice(idx, 1);
@@ -1356,7 +1270,6 @@
       node.onmousedown = function(e) {
         // Check if Alpine.js component is ready
         if (!isComponentReady()) {
-          console.log('Component not ready, operation cancelled');
           return;
         }
         
@@ -1365,7 +1278,6 @@
         
         // Check if user can edit (not readonly)
         if (!currentUserGlobal) {
-          console.log('User data not available, operation cancelled');
           return;
         }
         
@@ -1409,13 +1321,11 @@
       
       // Check if Alpine.js component is ready
       if (!isComponentReady()) {
-        console.log('Component not ready, operation cancelled');
         return;
       }
       
       // Check if user can edit (not readonly)
       if (!currentUserGlobal) {
-        console.log('User data not available, operation cancelled');
         return;
       }
       
@@ -1437,20 +1347,16 @@
 
     // Function to check if a node has documentation and prompt user
     async function checkNodeDocumentation(nodeId, onConfirm) {
-      console.log('🔍 Checking documentation for node:', nodeId);
       try {
         // Get the node data from the current network
         if (!currentNetworkIdGlobal) {
-          console.log('❌ No current network ID, proceeding with deletion');
           onConfirm();
           return;
         }
         
-        console.log('🌐 Fetching network layout for:', currentNetworkIdGlobal);
         // Fetch the node data from the current network
         const response = await fetch(`/networks/${currentNetworkIdGlobal}/layout`, { credentials: 'include' });
         if (!response.ok) {
-          console.log('❌ Failed to fetch network data, proceeding with deletion');
           onConfirm();
           return;
         }
@@ -1459,12 +1365,9 @@
         const node = layout.nodes?.find(n => n.id === nodeId);
         
         if (!node) {
-          console.log('❌ Node not found in network, proceeding with deletion');
           onConfirm();
           return;
         }
-        
-        console.log('✅ Node found:', node.type, node.name || 'Unnamed');
         
         // Check if node has documentation
         let hasDocumentation = false;
@@ -1479,18 +1382,12 @@
             }
             
             hasDocumentation = properties.documentation && properties.documentation.trim().length > 0;
-            console.log('📚 Documentation check:', hasDocumentation ? 'Has documentation' : 'No documentation');
-            if (hasDocumentation) {
-              console.log('📚 Documentation content:', properties.documentation);
-            }
           }
         } catch (e) {
-          console.log('⚠️ Properties parsing failed, assuming no documentation');
           hasDocumentation = false;
         }
         
         if (hasDocumentation) {
-          console.log('⚠️ Showing confirmation dialog for node with documentation');
           // Show confirmation dialog
           const confirmed = confirm(
             `⚠️ Warning: This node contains documentation in the wiki!\n\n` +
@@ -1500,15 +1397,12 @@
           );
           
           if (confirmed) {
-            console.log('✅ User confirmed deletion, proceeding');
             onConfirm();
           } else {
-            console.log('❌ User cancelled deletion');
             // Don't call onConfirm() if user cancels
             return;
           }
         } else {
-          console.log('✅ No documentation found, proceeding with deletion');
           onConfirm();
         }
       } catch (error) {
@@ -1524,7 +1418,6 @@
         const response = await fetch(`/networks/${networkId}/layout`);
         if (response.ok) {
           const data = await response.json();
-          console.log('📥 Network data loaded:', data);
           
           // Clear existing canvas
           canvas.innerHTML = '';
@@ -1534,25 +1427,16 @@
           data.nodes?.forEach(n => {
             const node = createNode(n);
             nodeMap[n.id] = node;
-            console.log(`Created node: ${n.id} -> ${node}`);
           });
           
-          console.log('Node map:', nodeMap);
-          
           data.connections?.forEach(link => {
-            console.log(`Processing connection: ${link.from} -> ${link.to}`);
             const from = nodeMap[link.from];
             const to = nodeMap[link.to];
             if (from && to) {
               connections.push([from, to]);
-              console.log(`Added connection: ${from} -> ${to}`);
-            } else {
-              console.error(`Failed to create connection: from=${link.from}, to=${link.to}`);
-              console.error(`Available nodes:`, Object.keys(nodeMap));
             }
           });
           
-          console.log('Final connections array:', connections);
           drawConnections();
         }
       } catch (error) {
@@ -1570,12 +1454,6 @@
         return;
       }
       
-      console.log('🔧 Opening network settings for network:', networkId);
-      
-      // Update debug info
-      document.getElementById('modalNetworkId').textContent = networkId;
-      document.getElementById('modalState').textContent = 'Open';
-      
       // Show modal
       modal.style.display = 'block';
       
@@ -1586,9 +1464,6 @@
     window.closeNetworkSettings = function() {
       const modal = document.getElementById('networkSettingsModal');
       modal.style.display = 'none';
-      
-      // Update debug info
-      document.getElementById('modalState').textContent = 'Closed';
     };
     
     window.saveNetworkAccess = async function() {
@@ -1606,7 +1481,6 @@
       if (accessType === 'shared' && currentUserGlobal?.id) {
         if (!selectedUserIds.includes(currentUserGlobal.id)) {
           selectedUserIds.push(currentUserGlobal.id);
-          console.log('🔧 Automatically including owner in shared access');
         }
       }
       
@@ -1692,7 +1566,6 @@
         const accessResponse = await fetch(`/networks/${networkId}/access`);
         if (accessResponse.ok) {
           const access = await accessResponse.json();
-          console.log('🔍 Access data received:', access);
           populateAccessInfo(access);
         }
         
