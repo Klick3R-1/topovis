@@ -1,6 +1,6 @@
 {
   "name": "topovis",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Advanced Network Topology Visualizer with Multi-User Support and SQLite Database",
   "license": "ISC",
   "author": "Klick3R",
