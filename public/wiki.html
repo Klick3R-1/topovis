@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Network Wiki - TopoVis</title>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    body { 
+      font-family: sans-serif; 
+      margin: 0; 
+      background: #121212; 
+      color: #eee; 
+    }
+    
+    .header {
+      background: #1e1e1e;
+      padding: 1rem 2rem;
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    .header h1 {
+      margin: 0;
+      color: #66c0f4;
+      font-size: 1.8rem;
+    }
+    
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+    }
+    
+    .nav-links a {
+      color: #ccc;
+      text-decoration: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    
+    .nav-links a:hover {
+      color: #66c0f4;
+      background: #333;
+    }
+    
+    .main-container {
+      display: flex;
+      height: calc(100vh - 80px);
+    }
+    
+    .sidebar {
+      width: 300px;
+      background: #1e1e1e;
+      border-right: 1px solid #333;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+    
+    .network-selector {
+      margin-bottom: 1.5rem;
+    }
+    
+    .network-selector select {
+      width: 100%;
+      padding: 0.75rem;
+      background: #1c1c1c;
+      border: 1px solid #444;
+      color: #eee;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      box-sizing: border-box;
+    }
+    
+    .tree-container {
+      background: #2c2f33;
+      border-radius: 4px;
+      padding: 1rem;
+      border: 1px solid #444;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    .tree-node:hover {
+      background: none;
+    }
+    
+    .tree-node.active {
+      background: none;
+      color: inherit;
+    }
+    
+    .tree-node.active .node-label {
+      text-decoration: underline;
+      text-decoration-color: #66c0f4;
+      text-decoration-thickness: 2px;
+      text-underline-offset: 2px;
+    }
+    
+    .tree-children {
+      margin-left: 1.5rem;
+      border-left: 1px solid #666;
+      padding-left: 1rem;
+      margin-top: 0.25rem;
+      position: relative;
+    }
+    
+    .tree-children::before {
+      content: '│';
+      color: #666;
+      font-family: monospace;
+      font-weight: bold;
+      position: absolute;
+      left: -0.5rem;
+      top: 0;
+    }
+    
+    .tree-node {
+      margin: 0.25rem 0;
+      cursor: pointer;
+      transition: all 0.2s;
+      padding: 0.25rem 0;
+      border-radius: 0;
+      border: none;
+      position: relative;
+    }
+    
+    .tree-node:not(:last-child)::after {
+      content: '├──';
+      color: #666;
+      font-family: monospace;
+      font-weight: bold;
+      position: absolute;
+      left: -1.5rem;
+      top: 0.25rem;
+    }
+    
+    .tree-node:last-child::after {
+      content: '└──';
+      color: #666;
+      font-family: monospace;
+      font-weight: bold;
+      position: absolute;
+      left: -1.5rem;
+      top: 0.25rem;
+    }
+    
+    .tree-toggle {
+      display: none;
+    }
+    
+    .node-label {
+      cursor: pointer;
+      padding: 0;
+      display: inline-block;
+      transition: color 0.2s;
+    }
+    
+    .node-label:hover {
+      color: #66c0f4;
+    }
+    
+    .content-area {
+      flex: 1;
+      padding: 2rem;
+      overflow-y: auto;
+      background: #121212;
+    }
+    
+    .wiki-page {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .page-header {
+      border-bottom: 1px solid #333;
+      padding-bottom: 1rem;
+      margin-bottom: 2rem;
+    }
+    
+    .page-title {
+      font-size: 2.5rem;
+      color: #66c0f4;
+      margin: 0 0 0.5rem 0;
+    }
+    
+    .page-subtitle {
+      color: #ccc;
+      font-size: 1.1rem;
+      margin: 0;
+    }
+    
+    .node-info {
+      background: #2c2f33;
+      border-radius: 4px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border: 1px solid #444;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .info-item {
+      background: #1c1c1c;
+      padding: 1rem;
+      border-radius: 4px;
+      border-left: 4px solid #66c0f4;
+      border: 1px solid #444;
+    }
+    
+    .info-label {
+      font-size: 0.8rem;
+      color: #ccc;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.5rem;
+    }
+    
+    .info-value {
+      font-size: 1.1rem;
+      color: #eee;
+      font-weight: 500;
+    }
+    
+    .connections-section {
+      background: #2c2f33;
+      border-radius: 4px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border: 1px solid #444;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    .section-title {
+      font-size: 1.5rem;
+      color: #66c0f4;
+      margin: 0 0 1rem 0;
+      border-bottom: 1px solid #333;
+      padding-bottom: 0.5rem;
+    }
+    
+    .connection-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .connection-item {
+      background: #1c1c1c;
+      margin: 0.5rem 0;
+      padding: 1rem;
+      border-radius: 4px;
+      border-left: 4px solid #4caf50;
+      transition: all 0.2s;
+      border: 1px solid #444;
+    }
+    
+    .connection-item:hover {
+      background: #333;
+      transform: translateX(5px);
+    }
+    
+    .connection-type {
+      font-size: 0.8rem;
+      color: #ccc;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.25rem;
+    }
+    
+    .connection-target {
+      font-size: 1.1rem;
+      color: #eee;
+      font-weight: 500;
+    }
+    
+    .connection-target a {
+      color: #66c0f4;
+      text-decoration: none;
+    }
+    
+    .connection-target a:hover {
+      text-decoration: underline;
+    }
+    
+    .no-content {
+      text-align: center;
+      padding: 3rem;
+      color: #ccc;
+    }
+    
+    .no-content h2 {
+      color: #66c0f4;
+      margin-bottom: 1rem;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: #ccc;
+    }
+    
+    .error {
+      background: #ff6b6b;
+      color: white;
+      padding: 1rem;
+      border-radius: 4px;
+      margin: 1rem 0;
+      border: 1px solid #ff6b6b;
+    }
+    
+    .breadcrumb {
+      background: #2c2f33;
+      padding: 1rem;
+      border-radius: 4px;
+      margin-bottom: 2rem;
+      border: 1px solid #444;
+    }
+    
+    .breadcrumb-item {
+      color: #ccc;
+      text-decoration: none;
+    }
+    
+    .breadcrumb-item:hover {
+      color: #66c0f4;
+    }
+    
+    .breadcrumb-separator {
+      margin: 0 0.5rem;
+      color: #666;
+    }
+    
+    .breadcrumb-current {
+      color: #66c0f4;
+      font-weight: 500;
+    }
+    
+    /* Documentation Section Styles */
+    .documentation-section {
+      background: #2c2f33;
+      border-radius: 4px;
+      padding: 1.5rem;
+      margin-top: 2rem;
+      border: 1px solid #444;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #333;
+    }
+    
+    .section-title {
+      margin: 0;
+      color: #66c0f4;
+      font-size: 1.3rem;
+    }
+    
+    .documentation-content {
+      background: #1c1c1c;
+      padding: 1.5rem;
+      border-radius: 4px;
+      border-left: 4px solid #4caf50;
+      min-height: 100px;
+      border: 1px solid #444;
+    }
+    
+    .documentation-content.no-doc {
+      color: #ccc;
+      font-style: italic;
+      text-align: center;
+      padding: 2rem;
+    }
+    
+    .documentation-content.error {
+      color: #ff6b6b;
+      border-left-color: #ff6b6b;
+    }
+    
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    
+    .modal {
+      background: #2c2f33;
+      border-radius: 4px;
+      width: 90%;
+      max-width: 800px;
+      max-height: 90vh;
+      overflow-y: auto;
+      border: 1px solid #444;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem;
+      border-bottom: 1px solid #333;
+    }
+    
+    .modal-header h3 {
+      margin: 0;
+      color: #66c0f4;
+    }
+    
+    .modal-body {
+      padding: 1.5rem;
+    }
+    
+    .modal-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+      padding: 1.5rem;
+      border-top: 1px solid #333;
+      background: #1c1c1c;
+      border-radius: 0 0 4px 4px;
+    }
+    
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: #eee;
+      font-weight: 500;
+    }
+    
+    .form-group textarea {
+      width: 100%;
+      background: #1c1c1c;
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 0.75rem;
+      color: #eee;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 14px;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #66c0f4;
+      box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
+    }
+    
+    .doc-preview {
+      background: #1c1c1c;
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 1rem;
+      min-height: 100px;
+      color: #eee;
+    }
+    
+    .doc-preview h1, .doc-preview h2, .doc-preview h3 {
+      color: #66c0f4;
+      margin-top: 0;
+    }
+    
+    .doc-preview code {
+      background: #333;
+      padding: 0.2rem 0.4rem;
+      border-radius: 3px;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    }
+    
+    .doc-preview pre {
+      background: #333;
+      padding: 1rem;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+    
+    /* Button Styles */
+    .btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .btn-primary {
+      background: #4caf50;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #45a049;
+      transform: translateY(-1px);
+    }
+    
+    .btn-secondary {
+      background: #666;
+      color: #eee;
+    }
+    
+    .btn-secondary:hover {
+      background: #555;
+    }
+    
+    /* Notification Styles */
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 1rem 1.5rem;
+      border-radius: 4px;
+      color: white;
+      font-weight: 500;
+      z-index: 1001;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    .notification.success {
+      background: #4caf50;
+    }
+    
+    .notification.error {
+      background: #ff6b6b;
+    }
+    
+    .notification.info {
+      background: #66c0f4;
+    }
+    
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Network Wiki</h1>
+    <div class="nav-links">
+      <a href="/">Network Editor</a>
+      <a href="/admin">Admin</a>
+      <a href="/settings">Settings</a>
+      <a href="#" onclick="logout()">Logout</a>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <div class="sidebar">
+      <div class="network-selector">
+        <select id="networkSelect" onchange="loadNetworkWiki()">
+          <option value="">Select Network...</option>
+        </select>
+      </div>
+      
+      <div class="tree-container">
+        <div id="networkTree"></div>
+      </div>
+    </div>
+
+    <div class="content-area">
+      <div id="wikiContent">
+        <div class="no-content">
+          <h2>Welcome to Network Wiki</h2>
+          <p>Select a network from the dropdown to view its documentation.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentNetwork = null;
+    let currentUser = null;
+    let networkTree = null;
+
+    // Load user networks on page load
+    window.onload = async function() {
+      try {
+        console.log('🚀 Wiki page loading...');
+        
+        // Small delay to ensure page is fully loaded
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        await loadUserNetworks();
+        console.log('✅ Wiki page loaded successfully');
+      } catch (error) {
+        console.error('❌ Page initialization failed:', error);
+        // Show error message instead of redirecting
+        document.getElementById('wikiContent').innerHTML = `
+          <div class="error">
+            Failed to load networks: ${error.message}
+          </div>
+        `;
+      }
+    };
+
+    async function loadUserNetworks() {
+      try {
+        console.log('🌐 Loading user networks...');
+        
+        // First get current user info
+        const userResponse = await fetch('/user/info', { credentials: 'include' });
+        if (!userResponse.ok) {
+          throw new Error('Authentication required');
+        }
+        currentUser = await userResponse.json();
+        console.log('✅ User authenticated:', currentUser.username);
+        
+        // Then load networks
+        const response = await fetch('/networks', { credentials: 'include' });
+        console.log('🌐 Networks response status:', response.status);
+        
+        if (!response.ok) throw new Error('Failed to load networks');
+        
+        const networks = await response.json();
+        console.log('🌐 Networks loaded:', networks.length);
+        
+        const select = document.getElementById('networkSelect');
+        select.innerHTML = '<option value="">Select Network...</option>';
+        
+        networks.forEach(network => {
+          const option = document.createElement('option');
+          option.value = network.id;
+          option.textContent = network.name;
+          select.appendChild(option);
+        });
+        
+        console.log('✅ Networks dropdown populated');
+      } catch (error) {
+        console.error('❌ Failed to load networks:', error);
+        if (error.message === 'Authentication required') {
+          // Redirect to login only for auth errors
+          if (window.location.pathname !== '/login') {
+            console.log('🔐 Redirecting to login...');
+            window.location.href = '/login';
+          }
+        }
+      }
+    }
+
+    async function loadNetworkWiki() {
+      const networkId = document.getElementById('networkSelect').value;
+      if (!networkId) {
+        document.getElementById('wikiContent').innerHTML = `
+          <div class="no-content">
+            <h2>Welcome to Network Wiki</h2>
+            <p>Select a network from the dropdown to view its documentation.</p>
+          </div>
+        `;
+        return;
+      }
+
+      try {
+        document.getElementById('wikiContent').innerHTML = '<div class="loading">Loading network documentation...</div>';
+        
+        const response = await fetch(`/wiki/network/${networkId}`, { credentials: 'include' });
+        if (!response.ok) throw new Error('Failed to load network wiki');
+        
+        const networkData = await response.json();
+        currentNetwork = networkData;
+        
+        console.log('🌐 Network data received:', networkData);
+        console.log('🌐 Root node:', networkData.rootNode);
+        console.log('🌐 All nodes:', networkData.nodes);
+        console.log('🌐 All connections:', networkData.connections);
+        
+        // Build and display tree
+        console.log('🌳 About to build network tree...');
+        buildNetworkTree(networkData);
+        console.log('🌳 Network tree built');
+        
+        // Show root node by default
+        if (networkData.rootNode) {
+          console.log('🌳 Showing root node page:', networkData.rootNode.id);
+          showNodePage(networkData.rootNode.id);
+        }
+      } catch (error) {
+        console.error('Failed to load network wiki:', error);
+        document.getElementById('wikiContent').innerHTML = `
+          <div class="error">
+            Failed to load network documentation: ${error.message}
+          </div>
+        `;
+      }
+    }
+
+    function buildNetworkTree(networkData) {
+      const treeContainer = document.getElementById('networkTree');
+      console.log('🌳 Tree container found:', treeContainer);
+      
+      treeContainer.innerHTML = '';
+      
+      if (!networkData.rootNode) {
+        treeContainer.innerHTML = '<p>No root node configured</p>';
+        return;
+      }
+      
+      console.log('🌳 Building tree for root node:', networkData.rootNode);
+      const treeHtml = buildTreeNode(networkData.rootNode, networkData.nodes, networkData.connections, new Set(), true);
+      console.log('🌳 Generated tree HTML length:', treeHtml.length);
+      console.log('🌳 Tree HTML preview:', treeHtml.substring(0, 200) + '...');
+      
+      treeContainer.innerHTML = treeHtml;
+      console.log('🌳 Tree HTML inserted into DOM');
+      
+      // Add click handlers
+      addTreeClickHandlers();
+      console.log('🌳 Click handlers added');
+    }
+
+    function buildTreeNode(node, allNodes, connections, visitedNodes, isRoot = false) {
+      console.log('🌳 Building tree node for:', node.type, node.name || 'Unnamed', 'ID:', node.id);
+      
+      // Check if we've already visited this node to prevent infinite loops
+      if (visitedNodes.has(node.id)) {
+        console.log('🌳 Node already visited, skipping:', node.id);
+        return '';
+      }
+      
+      // Mark this node as visited
+      visitedNodes.add(node.id);
+      console.log('🌳 Marked node as visited:', node.id, 'Total visited:', visitedNodes.size);
+      
+      const children = getNodeChildren(node.id, connections, allNodes);
+      const hasChildren = children.length > 0;
+      
+      console.log('🌳 Node has children:', hasChildren, 'Count:', children.length);
+      if (hasChildren) {
+        console.log('🌳 Children:', children.map(c => `${c.type} - ${c.name || 'Unnamed'}`));
+      }
+      
+      let html = `
+        <div class="tree-node ${isRoot ? 'active' : ''}" data-node-id="${node.id}">
+          <span class="tree-toggle ${hasChildren ? 'expanded' : 'hidden'}" onclick="toggleTreeNode(event, this)">${hasChildren ? '-' : ''}</span>
+          <span class="node-label" onclick="showNodePage('${node.id}')">${node.type} - ${node.name || 'Unnamed'}</span>
+        </div>
+      `;
+      
+      if (hasChildren) {
+        html += '<div class="tree-children" style="display: block;">';
+        children.forEach(child => {
+          html += buildTreeNode(child, allNodes, connections, visitedNodes, false);
+        });
+        html += '</div>';
+      }
+      
+      return html;
+    }
+
+    function getNodeChildren(nodeId, connections, allNodes) {
+      // Check both directions: outgoing connections (from_node_id) and incoming connections (to_node_id)
+      const outgoingConnections = connections
+        .filter(conn => conn.from_node_id === nodeId)
+        .map(conn => {
+          const targetNode = allNodes.find(n => n.id === conn.to_node_id);
+          return targetNode;
+        })
+        .filter(Boolean);
+      
+      const incomingConnections = connections
+        .filter(conn => conn.to_node_id === nodeId)
+        .map(conn => {
+          const sourceNode = allNodes.find(n => n.id === conn.from_node_id);
+          return sourceNode;
+        })
+        .filter(Boolean);
+      
+      // For your network structure, the logical flow is:
+      // Router → Switch → PC (Router connects TO Switch, Switch connects TO PC)
+      console.log('🔍 Getting children for node:', nodeId);
+      console.log('🔍 Outgoing connections:', outgoingConnections.map(n => `${n.type} - ${n.name || 'Unnamed'}`));
+      console.log('🔍 Incoming connections:', incomingConnections.map(n => `${n.type} - ${n.name || 'Unnamed'}`));
+      
+      // Children are nodes that this node connects TO (outgoing connections)
+      // This makes sense for network topology: Router → Switch → PC
+      const node = allNodes.find(n => n.id === nodeId);
+      if (node) {
+        console.log('🔍 Node type:', node.type, '- Using outgoing connections as children');
+        return outgoingConnections;
+      } else {
+        return [];
+      }
+    }
+
+    function toggleTreeNode(event, toggleElement) {
+      event.stopPropagation();
+      const treeNode = toggleElement.closest('.tree-node');
+      const childrenContainer = treeNode.nextElementSibling;
+      
+      // Check if children container exists and has the right class
+      if (!childrenContainer || !childrenContainer.classList.contains('tree-children')) {
+        console.log('⚠️ No children container found for toggle');
+        return;
+      }
+      
+      if (childrenContainer.style.display === 'none') {
+        childrenContainer.style.display = 'block';
+        toggleElement.textContent = '-';
+        toggleElement.classList.add('expanded');
+      } else {
+        childrenContainer.style.display = 'none';
+        toggleElement.textContent = '+';
+        toggleElement.classList.remove('expanded');
+      }
+    }
+
+    function addTreeClickHandlers() {
+      document.querySelectorAll('.tree-node').forEach(node => {
+        node.addEventListener('click', function(e) {
+          if (!e.target.classList.contains('tree-toggle')) {
+            document.querySelectorAll('.tree-node').forEach(n => n.classList.remove('active'));
+            this.classList.add('active');
+          }
+        });
+      });
+    }
+
+    async function showNodePage(nodeId) {
+      try {
+        const response = await fetch(`/wiki/node/${nodeId}`, { credentials: 'include' });
+        if (!response.ok) throw new Error('Failed to load node page');
+        
+        const nodeData = await response.json();
+        displayNodePage(nodeData);
+      } catch (error) {
+        console.error('Failed to load node page:', error);
+        document.getElementById('wikiContent').innerHTML = `
+          <div class="error">
+            Failed to load node page: ${error.message}
+          </div>
+        `;
+      }
+    }
+
+    function displayNodePage(nodeData) {
+      const breadcrumb = buildBreadcrumb(nodeData, null);
+      
+      document.getElementById('wikiContent').innerHTML = `
+        ${breadcrumb}
+        
+        <div class="wiki-page">
+          <div class="page-header">
+            <h1 class="page-title">${nodeData.type} - ${nodeData.name || 'Unnamed'} - ${nodeData.ip || 'No IP'}</h1>
+            <p class="page-subtitle">Network: ${currentNetwork.name}</p>
+          </div>
+          
+
+          
+          <div class="documentation-section">
+            <div class="section-header">
+              <h2 class="section-title">📚 Documentation</h2>
+              <button onclick="editDocumentation('${nodeData.id}')" class="btn btn-primary">
+                ✏️ Edit Documentation
+              </button>
+            </div>
+            <div class="documentation-content" id="doc-content-${nodeData.id}">
+              ${getDocumentationContent(nodeData)}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+
+
+    function getDocumentationContent(nodeData) {
+      try {
+        const properties = nodeData.properties ? JSON.parse(nodeData.properties) : {};
+        const documentation = properties.documentation || '';
+        
+        if (!documentation) {
+          return '<p class="no-doc">No documentation yet. Click "Edit Documentation" to add some.</p>';
+        }
+        
+        // Use marked.js to parse markdown if available, otherwise show as plain text
+        if (typeof marked !== 'undefined') {
+          return marked.parse(documentation);
+        } else {
+          return `<pre>${documentation}</pre>`;
+        }
+      } catch (error) {
+        console.error('Error parsing documentation:', error);
+        return '<p class="error">Error loading documentation</p>';
+      }
+    }
+
+    function editDocumentation(nodeId) {
+      const node = currentNetwork.nodes.find(n => n.id === nodeId);
+      if (!node) return;
+      
+      const properties = node.properties ? JSON.parse(node.properties) : {};
+      const currentDoc = properties.documentation || '';
+      
+      // Create modal for editing
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+        <div class="modal">
+          <div class="modal-header">
+            <h3>Edit Documentation - ${node.type} - ${node.name || 'Unnamed'}</h3>
+            <button onclick="closeDocumentationModal()" class="btn btn-secondary">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label for="doc-editor">Documentation (Markdown supported):</label>
+              <textarea id="doc-editor" rows="15" placeholder="Enter documentation here... Markdown is supported.">${currentDoc}</textarea>
+            </div>
+            <div class="form-group">
+              <label>Preview:</label>
+              <div id="doc-preview" class="doc-preview"></div>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button onclick="saveDocumentation('${nodeId}')" class="btn btn-primary">💾 Save</button>
+            <button onclick="closeDocumentationModal()" class="btn btn-secondary">Cancel</button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Setup live preview
+      const editor = document.getElementById('doc-editor');
+      const preview = document.getElementById('doc-preview');
+      
+      editor.addEventListener('input', function() {
+        if (typeof marked !== 'undefined') {
+          preview.innerHTML = marked.parse(this.value);
+        } else {
+          preview.innerHTML = `<pre>${this.value}</pre>`;
+        }
+      });
+      
+      // Initial preview
+      if (typeof marked !== 'undefined') {
+        preview.innerHTML = marked.parse(currentDoc);
+      } else {
+        preview.innerHTML = `<pre>${currentDoc}</pre>`;
+      }
+    }
+
+    function closeDocumentationModal() {
+      const modal = document.querySelector('.modal-overlay');
+      if (modal) {
+        modal.remove();
+      }
+    }
+
+    async function saveDocumentation(nodeId) {
+      const editor = document.getElementById('doc-editor');
+      const newDoc = editor.value;
+      
+      try {
+        const response = await fetch(`/wiki/node/${nodeId}/documentation`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({ documentation: newDoc })
+        });
+        
+        if (!response.ok) throw new Error('Failed to save documentation');
+        
+        // Update the node properties locally
+        const node = currentNetwork.nodes.find(n => n.id === nodeId);
+        if (node) {
+          const properties = node.properties ? JSON.parse(node.properties) : {};
+          properties.documentation = newDoc;
+          node.properties = JSON.stringify(properties);
+        }
+        
+        // Update the display
+        const docContent = document.getElementById(`doc-content-${nodeId}`);
+        if (docContent) {
+          if (typeof marked !== 'undefined') {
+            docContent.innerHTML = marked.parse(newDoc);
+          } else {
+            docContent.innerHTML = `<pre>${newDoc}</pre>`;
+          }
+        }
+        
+        closeDocumentationModal();
+        
+        // Show success message
+        showNotification('Documentation saved successfully!', 'success');
+      } catch (error) {
+        console.error('Failed to save documentation:', error);
+        showNotification('Failed to save documentation: ' + error.message, 'error');
+      }
+    }
+
+    function showNotification(message, type = 'info') {
+      const notification = document.createElement('div');
+      notification.className = `notification ${type}`;
+      notification.textContent = message;
+      
+      document.body.appendChild(notification);
+      
+      // Auto-remove after 3 seconds
+      setTimeout(() => {
+        notification.remove();
+      }, 3000);
+    }
+
+    function buildBreadcrumb(nodeData, parentNode) {
+      const breadcrumbs = [];
+      
+      // Add network
+      breadcrumbs.push(`
+        <a href="#" class="breadcrumb-item" onclick="loadNetworkWiki()">
+          ${currentNetwork.name}
+        </a>
+      `);
+      
+      // Add current node
+      breadcrumbs.push(`
+        <span class="breadcrumb-separator">/</span>
+        <span class="breadcrumb-current">
+          ${nodeData.type} - ${nodeData.name || 'Unnamed'}
+        </span>
+      `);
+      
+      return `<div class="breadcrumb">${breadcrumbs.join('')}</div>`;
+    }
+
+    function logout() {
+              fetch('/auth/logout', { method: 'POST', credentials: 'include' })
+        .then(() => {
+          window.location.href = '/';
+        })
+        .catch(error => {
+          console.error('Logout failed:', error);
+          window.location.href = '/';
+        });
+    }
+  </script>
+</body>
+</html>

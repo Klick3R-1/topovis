@@ -6,19 +6,66 @@
   <title>Network Editor</title>
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <style>
-    body { font-family: sans-serif; margin: 0; background: #121212; color: #eee; }
+    body { font-family: sans-serif; margin: 0; padding-top: 60px; background: #121212; color: #eee; }
+    
+    .header {
+      background: #1e1e1e;
+      padding: 0 2rem;
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      height: 60px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+    }
+    
+    .header h1 {
+      margin: 0;
+      color: #66c0f4;
+      font-size: 1.8rem;
+      line-height: 60px;
+    }
+    
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      height: 100%;
+    }
+    
+    .nav-links a {
+      color: #ccc;
+      text-decoration: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      transition: all 0.2s;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+    }
+    
+    .nav-links a:hover {
+      color: #66c0f4;
+      background: #333;
+    }
+    
     #sidebar {
       width: 200px;
       background: #1e1e1e;
       padding: 1em;
       float: left;
-      height: 100vh;
+      height: calc(100vh - 60px);
       box-sizing: border-box;
       border-right: 1px solid #333;
     }
     #canvas-container {
       margin-left: 200px;
-      height: 100vh;
+      height: calc(100vh - 60px);
       position: relative;
       background: #121212;
       overflow: hidden;
@@ -312,6 +359,18 @@
   </style>
 </head>
 <body>
+  <!-- Header with Navigation -->
+  <div class="header">
+    <h1>Network Editor</h1>
+    <div class="nav-links">
+      <a href="/">Network Editor</a>
+      <a href="/wiki">Network Wiki</a>
+      <a href="/admin">Admin</a>
+      <a href="/settings">Settings</a>
+      <a href="/logout">Logout</a>
+    </div>
+  </div>
+
   <div id="sidebar" x-data="sidebarData()">
     <h3>Palette</h3>
     
@@ -355,19 +414,13 @@
               x-show="canEditNetwork()">🗑️ Delete</button>
     </div>
     
-    <div id="palette"></div>
+        <div id="palette"></div>
     
-    <!-- Navigation Links -->
+    <!-- Network-specific actions -->
     <div style="margin-top: 1em; padding-top: 1em; border-top: 1px solid #333;">
-      <p><a href="/settings">⚙️ Settings</a></p>
-      <p x-show="currentUser?.role === 'admin'">
-        <a href="/admin">🔐 Admin Panel</a>
-        <span style="font-size: 10px; color: #666;">(Admin only)</span>
-      </p>
       <p x-show="currentNetworkId">
         <button onclick="openNetworkSettings()" class="sidebar-button">🌐 Network Settings</button>
       </p>
-      <p><a href="/logout">🚪 Logout</a></p>
     </div>
     
     <!-- Controls Section (moved inside sidebar to access currentUser) -->
@@ -436,10 +489,31 @@
             <!-- Access info will be populated by JavaScript -->
           </ul>
         </div>
+        
+        <!-- Root Node Configuration Section -->
+        <div class="form-group" style="margin-top: 2em; padding-top: 1em; border-top: 1px solid #555;">
+          <h4>🌐 Root Node Configuration</h4>
+          <p style="font-size: 12px; color: #a0aec0; margin-bottom: 1em;">
+            Configure which node should be the root/input node for this network. This affects how the network is displayed in the wiki.
+          </p>
+          
+          <div class="form-group">
+            <label>Root Node (Input):</label>
+            <select id="rootNodeSelect">
+              <option value="">Select root node...</option>
+              <!-- Nodes will be populated by JavaScript -->
+            </select>
+          </div>
+          
+          <div id="rootNodeInfo" style="display: none; background: #1c1c1c; padding: 8px; border-radius: 4px; font-size: 12px; margin-top: 0.5em;">
+            <!-- Root node info will be displayed here -->
+          </div>
+        </div>
       </div>
       
       <div class="modal-actions">
         <button onclick="saveNetworkAccess()" class="btn btn-primary">Save Settings</button>
+        <button onclick="saveRootNode()" class="btn btn-secondary">Save Root Node</button>
         <button onclick="closeNetworkSettings()" class="btn btn-secondary">Cancel</button>
       </div>
     </div>
@@ -516,6 +590,105 @@
               console.log('  - Modal x-show condition:', this.showNetworkSettings && this.currentNetworkId);
             }
           }, 500);
+        },
+        
+        async loadNetworkNodesForRoot() {
+          try {
+            const response = await fetch(`/networks/${this.currentNetworkId}/layout`);
+            if (response.ok) {
+              const layout = await response.json();
+              const nodes = layout.nodes || [];
+              
+              // Populate root node select
+              const rootNodeSelect = document.getElementById('rootNodeSelect');
+              rootNodeSelect.innerHTML = '<option value="">Select root node...</option>';
+              
+              nodes.forEach(node => {
+                const option = document.createElement('option');
+                option.value = node.id;
+                option.textContent = `${node.type} - ${node.name || 'Unnamed'}`;
+                rootNodeSelect.appendChild(option);
+              });
+              
+              // Try to find current root node
+              const rootNode = this.findRootNode(nodes, layout.connections);
+              if (rootNode) {
+                rootNodeSelect.value = rootNode.id;
+                this.showRootNodeInfo(rootNode);
+              }
+            }
+          } catch (error) {
+            console.error('Failed to load network nodes for root configuration:', error);
+          }
+        },
+        
+        findRootNode(nodes, connections) {
+          if (!nodes || !connections) return null;
+          
+          // Get all nodes that have incoming connections
+          const nodesWithIncoming = new Set(connections.map(conn => conn.to_node_id));
+          
+          // Find nodes that don't have incoming connections (potential roots)
+          const potentialRoots = nodes.filter(node => !nodesWithIncoming.has(node.id));
+          
+          // If multiple potential roots, prefer nodes with outgoing connections
+          if (potentialRoots.length > 1) {
+            const rootsWithOutgoing = potentialRoots.filter(node => 
+              connections.some(conn => conn.from_node_id === node.id)
+            );
+            if (rootsWithOutgoing.length > 0) {
+              return rootsWithOutgoing[0];
+            }
+          }
+          
+          return potentialRoots[0] || null;
+        },
+        
+        showRootNodeInfo(node) {
+          const infoDiv = document.getElementById('rootNodeInfo');
+          infoDiv.style.display = 'block';
+          infoDiv.innerHTML = `
+            <strong>Current Root:</strong> ${node.type} - ${node.name || 'Unnamed'} (${node.ip || 'No IP'})
+          `;
+        },
+        
+        async saveRootNode() {
+          const rootNodeSelect = document.getElementById('rootNodeSelect');
+          const selectedNodeId = rootNodeSelect.value;
+          
+          if (!selectedNodeId) {
+            alert('Please select a root node');
+            return;
+          }
+          
+          try {
+            const response = await fetch(`/networks/${this.currentNetworkId}/root-node`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ rootNodeId: selectedNodeId })
+            });
+            
+            if (response.ok) {
+              alert('Root node set successfully!');
+              // Update the info display
+              const selectedNode = Array.from(rootNodeSelect.options)
+                .find(option => option.value === selectedNodeId);
+              if (selectedNode) {
+                const nodeText = selectedNode.textContent;
+                const infoDiv = document.getElementById('rootNodeInfo');
+                infoDiv.style.display = 'block';
+                infoDiv.innerHTML = `
+                  <strong>Root Node Set:</strong> ${nodeText}
+                `;
+              }
+            } else {
+              const error = await response.json();
+              alert(error.error || 'Failed to set root node');
+            }
+          } catch (error) {
+            console.error('Failed to set root node:', error);
+            alert('Failed to set root node');
+          }
         },
         
         updateGlobalVariables() {
@@ -630,6 +803,9 @@
               currentAccess: []
             };
           }
+          
+          // Load network nodes for root node configuration
+          await this.loadNetworkNodesForRoot();
         },
         
         onAccessTypeChange() {
@@ -798,26 +974,44 @@
               document.getElementById('canvas').innerHTML = '';
               connections.length = 0;
               
-              // Import nodes
+              // Import nodes with new UUIDs
               const nodeMap = {};
+              const oldToNewIdMap = {}; // Map old IDs to new IDs
+              
               importData.network.nodes.forEach(nodeData => {
+                // Generate new UUID for each node
+                const newId = crypto.randomUUID();
+                oldToNewIdMap[nodeData.id] = newId;
+                
                 const node = createNode({
                   type: nodeData.type,
                   name: nodeData.name || '',
                   ip: nodeData.ip || '',
                   left: nodeData.x + 'px',
                   top: nodeData.y + 'px',
-                  id: nodeData.id || crypto.randomUUID()
+                  id: newId,
+                  properties: nodeData.properties || {}
                 });
-                nodeMap[nodeData.id] = node;
+                
+                // Store node with new ID for connection mapping
+                nodeMap[newId] = node;
               });
               
-              // Import connections
+              // Import connections using new node IDs
               importData.network.connections.forEach(link => {
-                const from = nodeMap[link.from];
-                const to = nodeMap[link.to];
-                if (from && to) {
-                  connections.push([from, to]);
+                const oldFromId = link.from;
+                const oldToId = link.to;
+                
+                // Get new IDs from the mapping
+                const newFromId = oldToNewIdMap[oldFromId];
+                const newToId = oldToNewIdMap[oldToId];
+                
+                if (newFromId && newToId) {
+                  const from = nodeMap[newFromId];
+                  const to = nodeMap[newToId];
+                  if (from && to) {
+                    connections.push([from, to]);
+                  }
                 }
               });
               
@@ -868,13 +1062,25 @@
           const nodes = [];
           document.querySelectorAll('.node').forEach(node => {
             const [nameInput, ipInput] = node.querySelectorAll('input');
+            
+            // Get properties from dataset (including documentation)
+            let properties = {};
+            if (node.dataset.properties) {
+              try {
+                properties = JSON.parse(node.dataset.properties);
+              } catch (e) {
+                console.warn('Failed to parse node properties:', e);
+              }
+            }
+            
             nodes.push({
               type: node.querySelector('strong').textContent,
               name: nameInput.value,
               ip: ipInput.value,
               left: node.style.left,
               top: node.style.top,
-              id: node.dataset.id
+              id: node.dataset.id,
+              properties: properties
             });
           });
 
@@ -1095,8 +1301,13 @@
       node.style.left = data.left;
       node.style.top = data.top;
       node.dataset.id = data.id || crypto.randomUUID();
+      
+      // Store properties (including documentation) in dataset
+      if (data.properties) {
+        node.dataset.properties = JSON.stringify(data.properties);
+      }
 
-      node.onclick = function(e) {
+      node.onclick = async function(e) {
         // Check if Alpine.js component is ready
         if (!isComponentReady()) {
           console.log('Component not ready, operation cancelled');
@@ -1117,11 +1328,28 @@
           return;
         }
         
-        connections.forEach((pair, idx) => {
-          if (pair[0] === node || pair[1] === node) connections.splice(idx, 1);
-        });
-        node.remove();
-        drawConnections();
+        // Check if node has documentation before deleting
+        const nodeId = node.dataset.id;
+        if (nodeId) {
+          console.log('🔍 Node has ID, checking documentation before deletion');
+          await checkNodeDocumentation(nodeId, () => {
+            // Proceed with deletion after confirmation
+            console.log('🗑️ Proceeding with node deletion');
+            connections.forEach((pair, idx) => {
+              if (pair[0] === node || pair[1] === node) connections.splice(idx, 1);
+            });
+            node.remove();
+            drawConnections();
+          });
+        } else {
+          console.log('🔍 No node ID found, proceeding with immediate deletion');
+          // No node ID, proceed with deletion
+          connections.forEach((pair, idx) => {
+            if (pair[0] === node || pair[1] === node) connections.splice(idx, 1);
+          });
+          node.remove();
+          drawConnections();
+        }
         return;
       };
 
@@ -1205,6 +1433,89 @@
         top: ev.clientY + 'px'
       };
       createNode(nodeData);
+    }
+
+    // Function to check if a node has documentation and prompt user
+    async function checkNodeDocumentation(nodeId, onConfirm) {
+      console.log('🔍 Checking documentation for node:', nodeId);
+      try {
+        // Get the node data from the current network
+        if (!currentNetworkIdGlobal) {
+          console.log('❌ No current network ID, proceeding with deletion');
+          onConfirm();
+          return;
+        }
+        
+        console.log('🌐 Fetching network layout for:', currentNetworkIdGlobal);
+        // Fetch the node data from the current network
+        const response = await fetch(`/networks/${currentNetworkIdGlobal}/layout`, { credentials: 'include' });
+        if (!response.ok) {
+          console.log('❌ Failed to fetch network data, proceeding with deletion');
+          onConfirm();
+          return;
+        }
+        
+        const layout = await response.json();
+        const node = layout.nodes?.find(n => n.id === nodeId);
+        
+        if (!node) {
+          console.log('❌ Node not found in network, proceeding with deletion');
+          onConfirm();
+          return;
+        }
+        
+        console.log('✅ Node found:', node.type, node.name || 'Unnamed');
+        
+        // Check if node has documentation
+        let hasDocumentation = false;
+        try {
+          if (node.properties) {
+            // Properties might be a string (JSON) or already an object
+            let properties;
+            if (typeof node.properties === 'string') {
+              properties = JSON.parse(node.properties);
+            } else {
+              properties = node.properties; // Already an object
+            }
+            
+            hasDocumentation = properties.documentation && properties.documentation.trim().length > 0;
+            console.log('📚 Documentation check:', hasDocumentation ? 'Has documentation' : 'No documentation');
+            if (hasDocumentation) {
+              console.log('📚 Documentation content:', properties.documentation);
+            }
+          }
+        } catch (e) {
+          console.log('⚠️ Properties parsing failed, assuming no documentation');
+          hasDocumentation = false;
+        }
+        
+        if (hasDocumentation) {
+          console.log('⚠️ Showing confirmation dialog for node with documentation');
+          // Show confirmation dialog
+          const confirmed = confirm(
+            `⚠️ Warning: This node contains documentation in the wiki!\n\n` +
+            `Node: ${node.type} - ${node.name || 'Unnamed'}\n\n` +
+            `Deleting this node will permanently remove all its documentation.\n\n` +
+            `Are you sure you want to delete this node?`
+          );
+          
+          if (confirmed) {
+            console.log('✅ User confirmed deletion, proceeding');
+            onConfirm();
+          } else {
+            console.log('❌ User cancelled deletion');
+            // Don't call onConfirm() if user cancels
+            return;
+          }
+        } else {
+          console.log('✅ No documentation found, proceeding with deletion');
+          onConfirm();
+        }
+      } catch (error) {
+        console.error('❌ Error checking node documentation:', error);
+        // On error, proceed with deletion
+        onConfirm();
+      }
     }
 
     // Global function to load network data
@@ -1322,6 +1633,52 @@
       }
     };
     
+    window.saveRootNode = async function() {
+      const networkId = currentNetworkIdGlobal;
+      const rootNodeSelect = document.getElementById('rootNodeSelect');
+      const selectedNodeId = rootNodeSelect.value;
+      
+      if (!networkId) {
+        alert('No network selected');
+        return;
+      }
+      
+      if (!selectedNodeId) {
+        alert('Please select a root node');
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/networks/${networkId}/root-node`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ rootNodeId: selectedNodeId })
+        });
+        
+        if (response.ok) {
+          alert('✅ Root node set successfully!');
+          // Update the info display
+          const selectedNode = Array.from(rootNodeSelect.options)
+            .find(option => option.value === selectedNodeId);
+          if (selectedNode) {
+            const nodeText = selectedNode.textContent;
+            const infoDiv = document.getElementById('rootNodeInfo');
+            infoDiv.style.display = 'block';
+            infoDiv.innerHTML = `
+              <strong>Root Node Set:</strong> ${nodeText}
+            `;
+          }
+        } else {
+          const error = await response.json();
+          alert('❌ Failed to set root node: ' + (error.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error saving root node:', error);
+        alert('❌ Error setting root node');
+      }
+    };
+    
     async function loadModalData(networkId) {
       try {
         // Load available users
@@ -1338,9 +1695,75 @@
           console.log('🔍 Access data received:', access);
           populateAccessInfo(access);
         }
+        
+        // Load network nodes for root node configuration
+        const layoutResponse = await fetch(`/networks/${networkId}/layout`);
+        if (layoutResponse.ok) {
+          const layout = await layoutResponse.json();
+          const nodes = layout.nodes || [];
+          
+          // Populate root node select
+          const rootNodeSelect = document.getElementById('rootNodeSelect');
+          rootNodeSelect.innerHTML = '<option value="">Select root node...</option>';
+          
+          nodes.forEach(node => {
+            const option = document.createElement('option');
+            option.value = node.id;
+            option.textContent = `${node.type} - ${node.name || 'Unnamed'}`;
+            rootNodeSelect.appendChild(option);
+          });
+          
+          // Try to find current root node
+          const rootNode = findRootNode(nodes, layout.connections);
+          if (rootNode) {
+            rootNodeSelect.value = rootNode.id;
+            showRootNodeInfo(rootNode);
+          }
+          
+          // Add change event listener to show info when selection changes
+          rootNodeSelect.addEventListener('change', function() {
+            const selectedNode = nodes.find(n => n.id === this.value);
+            if (selectedNode) {
+              showRootNodeInfo(selectedNode);
+            } else {
+              const infoDiv = document.getElementById('rootNodeInfo');
+              infoDiv.style.display = 'none';
+            }
+          });
+        }
       } catch (error) {
         console.error('Failed to load modal data:', error);
       }
+    }
+    
+    function findRootNode(nodes, connections) {
+      if (!nodes || !connections) return null;
+      
+      // Get all nodes that have incoming connections
+      const nodesWithIncoming = new Set(connections.map(conn => conn.to_node_id));
+      
+      // Find nodes that don't have incoming connections (potential roots)
+      const potentialRoots = nodes.filter(node => !nodesWithIncoming.has(node.id));
+      
+      // If multiple potential roots, prefer nodes with outgoing connections
+      if (potentialRoots.length > 1) {
+        const rootsWithOutgoing = potentialRoots.filter(node => 
+          connections.some(conn => conn.from_node_id === node.id)
+        );
+        if (rootsWithOutgoing.length > 0) {
+          return rootsWithOutgoing[0];
+        }
+      }
+      
+      return potentialRoots[0] || null;
+    }
+    
+    function showRootNodeInfo(node) {
+      const infoDiv = document.getElementById('rootNodeInfo');
+      infoDiv.style.display = 'block';
+      infoDiv.innerHTML = `
+        <strong>Current Root:</strong> ${node.type} - ${node.name || 'Unnamed'} (${node.ip || 'No IP'})
+      `;
     }
     
     function populateUserList(users) {

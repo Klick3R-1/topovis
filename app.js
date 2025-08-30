@@ -95,6 +95,17 @@ db.serialize(() => {
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
   )`);
   
+  // Create network_root_nodes table for storing root node configuration
+  db.run(`CREATE TABLE IF NOT EXISTS network_root_nodes (
+    id TEXT PRIMARY KEY,
+    network_id TEXT NOT NULL,
+    root_node_id TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (network_id) REFERENCES networks (id) ON DELETE CASCADE,
+    FOREIGN KEY (root_node_id) REFERENCES nodes (id) ON DELETE CASCADE
+  )`);
+  
   // Insert default admin user if not exists
   const hashedPassword = bcrypt.hashSync(PASSWORD, 10);
   db.run(`INSERT OR IGNORE INTO users (id, username, password, role, email) VALUES (?, ?, ?, ?, ?)`, 
@@ -163,11 +174,210 @@ function requireUserOrAdmin(req, res, next) {
 
 app.get('/login', (req, res) => {
   res.send(`
-    <form method="POST">
-      <input name="username" placeholder="Username" required />
-      <input name="password" type="password" placeholder="Password" required />
-      <button type="submit">Login</button>
-    </form>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Login - TopoVis</title>
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          background: linear-gradient(135deg, #0f1419 0%, #1a1f2e 100%);
+          color: #eee;
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+        }
+        
+        .login-container {
+          background: rgba(30, 30, 30, 0.95);
+          backdrop-filter: blur(10px);
+          border: 1px solid #333;
+          border-radius: 16px;
+          padding: 3rem;
+          width: 100%;
+          max-width: 400px;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+          text-align: center;
+        }
+        
+        .logo {
+          margin-bottom: 2rem;
+        }
+        
+        .logo h1 {
+          font-size: 2.5rem;
+          font-weight: 700;
+          background: linear-gradient(135deg, #66c0f4 0%, #4a9eff 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          margin-bottom: 0.5rem;
+        }
+        
+        .logo .tagline {
+          color: #ccc;
+          font-size: 0.9rem;
+          font-weight: 300;
+        }
+        
+        .form-group {
+          margin-bottom: 1.5rem;
+          text-align: left;
+        }
+        
+        .form-group label {
+          display: block;
+          margin-bottom: 0.5rem;
+          color: #ccc;
+          font-size: 0.9rem;
+          font-weight: 500;
+        }
+        
+        .form-group input {
+          width: 100%;
+          padding: 12px 16px;
+          background: #1c1c1c;
+          border: 1px solid #444;
+          border-radius: 8px;
+          color: #eee;
+          font-size: 1rem;
+          transition: all 0.3s ease;
+        }
+        
+        .form-group input:focus {
+          outline: none;
+          border-color: #66c0f4;
+          box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
+          background: #2a2a2a;
+        }
+        
+        .form-group input::placeholder {
+          color: #666;
+        }
+        
+        .login-btn {
+          width: 100%;
+          padding: 14px 20px;
+          background: linear-gradient(135deg, #66c0f4 0%, #4a9eff 100%);
+          border: none;
+          border-radius: 8px;
+          color: white;
+          font-size: 1rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          margin-top: 1rem;
+        }
+        
+        .login-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(102, 192, 244, 0.3);
+        }
+        
+        .login-btn:active {
+          transform: translateY(0);
+        }
+        
+        .error-message {
+          background: rgba(255, 107, 107, 0.1);
+          border: 1px solid #ff6b6b;
+          color: #ff6b6b;
+          padding: 12px;
+          border-radius: 8px;
+          margin-bottom: 1rem;
+          font-size: 0.9rem;
+        }
+        
+        .success-message {
+          background: rgba(76, 175, 80, 0.1);
+          border: 1px solid #4caf50;
+          color: #4caf50;
+          padding: 12px;
+          border-radius: 8px;
+          margin-bottom: 1rem;
+          font-size: 0.9rem;
+        }
+        
+        .footer {
+          margin-top: 2rem;
+          color: #666;
+          font-size: 0.8rem;
+        }
+        
+        @media (max-width: 480px) {
+          .login-container {
+            padding: 2rem;
+            margin: 10px;
+          }
+          
+          .logo h1 {
+            font-size: 2rem;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="login-container">
+        <div class="logo">
+          <h1>TopoVis</h1>
+          <div class="tagline">Network Topology Visualization</div>
+        </div>
+        
+        <form method="POST" id="loginForm">
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input 
+              type="text" 
+              id="username" 
+              name="username" 
+              placeholder="Enter your username" 
+              required 
+              autocomplete="username"
+            />
+          </div>
+          
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input 
+              type="password" 
+              id="password" 
+              name="password" 
+              placeholder="Enter your password" 
+              required 
+              autocomplete="current-password"
+            />
+          </div>
+          
+          <button type="submit" class="login-btn">
+            🔐 Sign In
+          </button>
+        </form>
+        
+        <div class="footer">
+          Secure network management platform
+        </div>
+      </div>
+      
+      <script>
+        // Add some interactive feedback
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+          const btn = e.target.querySelector('.login-btn');
+          btn.textContent = '🔄 Signing In...';
+          btn.disabled = true;
+        });
+      </script>
+    </body>
+    </html>
   `);
 });
 
@@ -189,11 +399,177 @@ app.post('/login', async (req, res) => {
       db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
       res.redirect('/');
     } else {
-      res.send('Invalid login. <a href="/login">Try again</a>.');
+      res.send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Login Failed - TopoVis</title>
+          <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            
+            body {
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              background: linear-gradient(135deg, #0f1419 0%, #1a1f2e 100%);
+              color: #eee;
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 20px;
+            }
+            
+            .error-container {
+              background: rgba(30, 30, 30, 0.95);
+              backdrop-filter: blur(10px);
+              border: 1px solid #ff6b6b;
+              border-radius: 16px;
+              padding: 3rem;
+              width: 100%;
+              max-width: 400px;
+              box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+              text-align: center;
+            }
+            
+            .error-icon {
+              font-size: 3rem;
+              margin-bottom: 1rem;
+            }
+            
+            .error-title {
+              color: #ff6b6b;
+              font-size: 1.5rem;
+              margin-bottom: 1rem;
+            }
+            
+            .error-message {
+              color: #ccc;
+              margin-bottom: 2rem;
+              line-height: 1.5;
+            }
+            
+            .back-btn {
+              display: inline-block;
+              padding: 12px 24px;
+              background: linear-gradient(135deg, #66c0f4 0%, #4a9eff 100%);
+              border: none;
+              border-radius: 8px;
+              color: white;
+              text-decoration: none;
+              font-weight: 600;
+              transition: all 0.3s ease;
+            }
+            
+            .back-btn:hover {
+              transform: translateY(-2px);
+              box-shadow: 0 8px 25px rgba(102, 192, 244, 0.3);
+            }
+          </style>
+        </head>
+        <body>
+          <div class="error-container">
+            <div class="error-icon">❌</div>
+            <div class="error-title">Login Failed</div>
+            <div class="error-message">
+              Invalid username or password. Please check your credentials and try again.
+            </div>
+            <a href="/login" class="back-btn">← Back to Login</a>
+          </div>
+        </body>
+        </html>
+      `);
     }
   } catch (error) {
     console.error('Login error:', error);
-    res.send('Login error. <a href="/login">Try again</a>.');
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Login Error - TopoVis</title>
+        <style>
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f1419 0%, #1a1f2e 100%);
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+          }
+          
+          .error-container {
+            background: rgba(30, 30, 30, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid #ff6b6b;
+            border-radius: 16px;
+            padding: 3rem;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            text-align: center;
+          }
+          
+          .error-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+          }
+          
+          .error-title {
+            color: #ff6b6b;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+          }
+          
+          .error-message {
+            color: #ccc;
+            margin-bottom: 2rem;
+            line-height: 1.5;
+          }
+          
+          .back-btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #66c0f4 0%, #4a9eff 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+          }
+          
+          .back-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 192, 244, 0.3);
+          }
+        </style>
+      </head>
+      <body>
+        <div class="error-container">
+          <div class="error-icon">⚠️</div>
+          <div class="error-title">System Error</div>
+          <div class="error-message">
+            An unexpected error occurred during login. Please try again later.
+          </div>
+          <a href="/login" class="back-btn">← Back to Login</a>
+        </div>
+      </body>
+      </html>
+    `);
   }
 });
 
@@ -211,6 +587,10 @@ app.get('/settings', requireAuth, (req, res) => {
 
 app.get('/admin', requireAdmin, (req, res) => {
   res.sendFile(path.join(publicPath, 'admin.html'));
+});
+
+app.get('/wiki', requireAuth, (req, res) => {
+  res.sendFile(path.join(publicPath, 'wiki.html'));
 });
 
 // Get current user info
@@ -1277,6 +1657,346 @@ function insertTemplateData(networkId, templateData, res) {
   connStmt.finalize();
   
   res.json({ success: true, networkId });
+}
+
+// Wiki API endpoints
+app.get('/wiki/network/:networkId', async (req, res) => {
+  try {
+    const { networkId } = req.params;
+    const userId = req.session.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    // Check if user has access to this network
+    const hasAccess = await checkNetworkAccess(networkId, userId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Get network data with hierarchy
+    const networkData = await getNetworkWikiData(networkId);
+    res.json(networkData);
+  } catch (error) {
+    console.error('Wiki network error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/wiki/node/:nodeId', async (req, res) => {
+  try {
+    const { nodeId } = req.params;
+    const userId = req.session.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    // Get node data
+    const nodeData = await getNodeWikiData(nodeId, userId);
+    if (!nodeData) {
+      return res.status(404).json({ error: 'Node not found' });
+    }
+    
+    res.json(nodeData);
+  } catch (error) {
+    console.error('Wiki node error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Save documentation for a node
+app.post('/wiki/node/:nodeId/documentation', requireAuth, async (req, res) => {
+  try {
+    const { nodeId } = req.params;
+    const { documentation } = req.body;
+    const userId = req.session.userId;
+    
+    if (!documentation) {
+      return res.status(400).json({ error: 'Documentation content is required' });
+    }
+    
+    // First get the node to find out which network it belongs to
+    const node = await getNodeByIdWithAccess(nodeId, userId);
+    if (!node) {
+      return res.status(404).json({ error: 'Node not found or access denied' });
+    }
+    
+    // Update the node's properties to include documentation
+    const properties = node.properties ? JSON.parse(node.properties) : {};
+    properties.documentation = documentation;
+    
+    // Update the node in the database
+    db.run(
+      'UPDATE nodes SET properties = ? WHERE id = ?',
+      [JSON.stringify(properties), nodeId],
+      function(err) {
+        if (err) {
+          console.error('Error updating node documentation:', err);
+          return res.status(500).json({ error: 'Failed to save documentation' });
+        }
+        
+        res.json({ success: true, message: 'Documentation saved successfully' });
+      }
+    );
+  } catch (error) {
+    console.error('Save documentation error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Set root node for a network
+app.post('/networks/:networkId/root-node', requireAuth, async (req, res) => {
+  try {
+    const { networkId } = req.params;
+    const { rootNodeId } = req.body;
+    const userId = req.session.userId;
+    
+    if (!rootNodeId) {
+      return res.status(400).json({ error: 'Root node ID is required' });
+    }
+    
+    // Check if user owns the network or has admin access
+    const network = await getNetworkById(networkId);
+    if (!network) {
+      return res.status(404).json({ error: 'Network not found' });
+    }
+    
+    if (network.user_id !== userId && !isUserAdmin(userId)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Verify the node exists in the network
+    const node = await getNodeById(rootNodeId, networkId);
+    if (!node) {
+      return res.status(400).json({ error: 'Node not found in network' });
+    }
+    
+    // Store the root node configuration in a new table or update existing
+    await setNetworkRootNode(networkId, rootNodeId);
+    
+    res.json({ success: true, message: 'Root node set successfully' });
+  } catch (error) {
+    console.error('Set root node error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Helper function to get network wiki data with hierarchy
+async function getNetworkWikiData(networkId) {
+  return new Promise((resolve, reject) => {
+    // Get network info
+    db.get('SELECT * FROM networks WHERE id = ?', [networkId], (err, network) => {
+      if (err) return reject(err);
+      if (!network) return reject(new Error('Network not found'));
+      
+      // Get all nodes
+      db.all('SELECT * FROM nodes WHERE network_id = ?', [networkId], (err, nodes) => {
+        if (err) return reject(err);
+        
+        // Get all connections
+        db.all('SELECT * FROM connections WHERE network_id = ?', [networkId], (err, connections) => {
+          if (err) return reject(err);
+          
+          // Get configured root node, fallback to auto-detection
+          db.get('SELECT root_node_id FROM network_root_nodes WHERE network_id = ?', [networkId], (err, rootConfig) => {
+            let rootNode = null;
+            
+            console.log('🔍 Root node config for network', networkId, ':', rootConfig);
+            
+            if (rootConfig && rootConfig.root_node_id) {
+              // Use configured root node
+              rootNode = nodes.find(n => n.id === rootConfig.root_node_id);
+              console.log('🔍 Using configured root node:', rootNode);
+            }
+            
+            // Fallback to auto-detection if no configured root
+            if (!rootNode) {
+              rootNode = findRootNode(nodes, connections);
+              console.log('🔍 Using auto-detected root node:', rootNode);
+            }
+            
+            console.log('🔍 Final root node:', rootNode);
+            console.log('🔍 All nodes:', nodes.map(n => `${n.type} - ${n.name || 'Unnamed'} (${n.id})`));
+            console.log('🔍 All connections:', connections.map(c => `${c.from_node_id} -> ${c.to_node_id}`));
+            
+            resolve({
+              id: network.id,
+              name: network.name,
+              description: network.description,
+              nodes: nodes,
+              connections: connections,
+              rootNode: rootNode
+            });
+          });
+        });
+      });
+    });
+  });
+}
+
+// Helper function to find root node
+function findRootNode(nodes, connections) {
+  console.log('🔍 Finding root node with connections:', connections);
+  
+  // Get all nodes that have incoming connections
+  const nodesWithIncoming = new Set(connections.map(conn => conn.to_node_id));
+  console.log('🔍 Nodes with incoming connections:', Array.from(nodesWithIncoming));
+  
+  // Find nodes that don't have incoming connections (potential roots)
+  const potentialRoots = nodes.filter(node => !nodesWithIncoming.has(node.id));
+  console.log('🔍 Potential root nodes:', potentialRoots.map(n => `${n.type} - ${n.name || 'Unnamed'}`));
+  
+  // If multiple potential roots, prefer nodes with outgoing connections
+  if (potentialRoots.length > 1) {
+    const rootsWithOutgoing = potentialRoots.filter(node => 
+      connections.some(conn => conn.from_node_id === node.id)
+    );
+    console.log('🔍 Roots with outgoing connections:', rootsWithOutgoing.map(n => `${n.type} - ${n.name || 'Unnamed'}`));
+    if (rootsWithOutgoing.length > 0) {
+      return rootsWithOutgoing[0];
+    }
+  }
+  
+  // For your network structure, the Router should be the root
+  // Look for nodes that have multiple outgoing connections (hubs)
+  const hubNodes = nodes.filter(node => {
+    const outgoingCount = connections.filter(conn => conn.from_node_id === node.id).length;
+    const incomingCount = connections.filter(conn => conn.to_node_id === node.id).length;
+    return outgoingCount > incomingCount;
+  });
+  
+  if (hubNodes.length > 0) {
+    console.log('🔍 Found hub node:', hubNodes[0]);
+    return hubNodes[0];
+  }
+  
+  console.log('🔍 No hub found, returning first potential root:', potentialRoots[0]);
+  return potentialRoots[0] || null;
+}
+
+// Helper function to get node wiki data
+async function getNodeWikiData(nodeId, userId) {
+  return new Promise((resolve, reject) => {
+    db.get(`
+      SELECT n.*, net.name as network_name 
+      FROM nodes n 
+      JOIN networks net ON n.network_id = net.id 
+      WHERE n.id = ?
+    `, [nodeId], (err, node) => {
+      if (err) return reject(err);
+      if (!node) return resolve(null);
+      
+      // Check if user has access to this network
+      checkNetworkAccess(node.network_id, userId).then(hasAccess => {
+        if (!hasAccess) {
+          resolve(null);
+        } else {
+          resolve(node);
+        }
+      }).catch(reject);
+    });
+  });
+}
+
+// Helper function to get network by ID
+async function getNetworkById(networkId) {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT * FROM networks WHERE id = ?', [networkId], (err, network) => {
+      if (err) return reject(err);
+      resolve(network);
+    });
+  });
+}
+
+// Helper function to get node by ID
+async function getNodeById(nodeId, networkId) {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT * FROM nodes WHERE id = ? AND network_id = ?', [nodeId, networkId], (err, node) => {
+      if (err) return reject(err);
+      resolve(node);
+    });
+  });
+}
+
+// Helper function to get node by ID and verify user access
+async function getNodeByIdWithAccess(nodeId, userId) {
+  return new Promise((resolve, reject) => {
+    // First get the node to find out which network it belongs to
+    db.get('SELECT * FROM nodes WHERE id = ?', [nodeId], (err, node) => {
+      if (err) return reject(err);
+      if (!node) return resolve(null);
+      
+      // Check if user has access to this network
+      checkNetworkAccess(node.network_id, userId).then(hasAccess => {
+        if (!hasAccess) {
+          resolve(null);
+        } else {
+          resolve(node);
+        }
+      }).catch(reject);
+    });
+  });
+}
+
+// Helper function to check if user is admin
+async function isUserAdmin(userId) {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT role FROM users WHERE id = ?', [userId], (err, user) => {
+      if (err) return reject(err);
+      resolve(user && user.role === 'admin');
+    });
+  });
+}
+
+// Helper function to check if user has access to a network
+async function checkNetworkAccess(networkId, userId) {
+  return new Promise((resolve, reject) => {
+    // First check if user is admin (admins have access to all networks)
+    db.get('SELECT role FROM users WHERE id = ?', [userId], (err, user) => {
+      if (err) return reject(err);
+      
+      if (user && user.role === 'admin') {
+        return resolve(true);
+      }
+      
+      // Check if user owns the network or has been granted access
+      db.get('SELECT n.id FROM networks n LEFT JOIN network_access na ON n.id = na.network_id WHERE n.id = ? AND (n.user_id = ? OR na.user_id = ? OR na.access_type = "public")', 
+        [networkId, userId, userId], (err, network) => {
+        if (err) return reject(err);
+        resolve(!!network); // Convert to boolean
+      });
+    });
+  });
+}
+
+// Helper function to set network root node
+async function setNetworkRootNode(networkId, rootNodeId) {
+  return new Promise((resolve, reject) => {
+    // First, try to update existing record
+    db.run(`
+      UPDATE network_root_nodes 
+      SET root_node_id = ?, updated_at = CURRENT_TIMESTAMP 
+      WHERE network_id = ?
+    `, [rootNodeId, networkId], function(err) {
+      if (err) return reject(err);
+      
+      // If no rows were updated, insert new record
+      if (this.changes === 0) {
+        const id = `root-${Date.now()}`;
+        db.run(`
+          INSERT INTO network_root_nodes (id, network_id, root_node_id) 
+          VALUES (?, ?, ?)
+        `, [id, networkId, rootNodeId], (err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      } else {
+        resolve();
+      }
+    });
+  });
 }
 
 app.listen(PORT, () => {

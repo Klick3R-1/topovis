@@ -11,15 +11,57 @@
       color: #eee;
       font-family: sans-serif;
       margin: 0;
-      padding: 2em;
+      padding-top: 60px;
     }
+    
     .header {
+      background: #1e1e1e;
+      padding: 0 2rem;
+      border-bottom: 1px solid #333;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 2em;
-      padding-bottom: 1em;
-      border-bottom: 1px solid #333;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      height: 60px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+    }
+    
+    .header h1 {
+      margin: 0;
+      color: #66c0f4;
+      font-size: 1.8rem;
+      line-height: 60px;
+    }
+    
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      height: 100%;
+    }
+    
+    .nav-links a {
+      color: #ccc;
+      text-decoration: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      transition: all 0.2s;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+    }
+    
+    .nav-links a:hover {
+      color: #66c0f4;
+      background: #333;
+    }
+    
+    .content {
+      padding: 2em;
     }
     h1 {
       color: #66c0f4;
@@ -320,13 +362,39 @@
     a:hover {
       text-decoration: underline;
     }
+    
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+    }
+    
+    .nav-links a {
+      color: #a0aec0;
+      text-decoration: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+    
+    .nav-links a:hover {
+      color: #66c0f4;
+      background: #2d3748;
+    }
   </style>
 </head>
 <body x-data="adminData()">
   <div class="header">
     <h1>🔐 Admin Panel</h1>
-    <a href="/">← Back to Editor</a>
+    <div class="nav-links">
+      <a href="/">Network Editor</a>
+      <a href="/wiki">Network Wiki</a>
+      <a href="/admin">Admin</a>
+      <a href="/settings">Settings</a>
+      <a href="/logout">Logout</a>
+    </div>
   </div>
+
+  <div class="content">
 
   <!-- Stats Overview -->
   <div class="stats-grid">
@@ -912,6 +980,8 @@
       }
     }
   </script>
+
+  </div> <!-- Close content div -->
 
   <!-- Create Device Type Modal -->
   <div class="modal" x-show="showCreateTypeModal">
