@@ -1,11 +1,11 @@
-# 🌐 TopoVis v2.0.0 - Advanced Network Topology Visualizer
+# 🌐 TopoVis v2.1.0 - Advanced Network Topology Visualizer
 [![License: MIT with Commons Clause](https://img.shields.io/badge/License-MIT--Commons%20Clause-blue.svg)](LICENSE)
 
-<img width="1455" height="1047" alt="image" src="https://github.com/user-attachments/assets/30ea5a0d-c1da-4e11-878b-b2e28e224cbc" />
+<img width="1455" height="1047" alt="image" src="https://github.com/user-attachments/assets/30ea4a0d-c1da-4e11-878b-b2e28e224cbc" />
 
 
 
-> 🎉 **Major Release**: Complete rewrite with multi-user support, network access control, and enhanced UI/UX
+> 🎉 **Major Release**: Complete rewrite with multi-user support, network access control, enhanced UI/UX, and professional login system
 
 **TopoVis** is a powerful, feature-rich web application for visualizing, designing, and managing network topologies. Built with Node.js, Express, SQLite, and Alpine.js for a modern, responsive experience.
 
@@ -15,30 +15,21 @@
 
 ---
 
-## ✨ What's New in v2.0.0
+## ✨ What's New in v2.1.0
 
-- 🗄️ **SQLite Database**: Persistent storage for networks, users, and configurations
-- 👥 **Multi-User Support**: User management with role-based access control
-- 🌐 **Multi-Network Management**: Create, switch between, and manage multiple networks
-- 🎯 **Network Templates**: Pre-built templates for LAN, Hetzner, and Office environments
-- 📤 **Import/Export**: Share networks via JSON export/import
-- 🎨 **Alpine.js Integration**: Modern reactive UI with smooth interactions
-- 🔐 **Role-Based Access Control**: Admin, User, and Read-only roles
-- ⚙️ **Admin Panel**: Comprehensive user and system management
-- 🔒 **Network Access Control**: Private, shared, and public network access levels
-- 👤 **User Sharing**: Grant specific users access to your networks
-- 🎯 **Owner Protection**: Network owners are automatically included in shared access
-- 🚀 **Enhanced UI/UX**: Improved modal system, better error handling, and responsive design
-- 🔧 **Database-Driven Node Types**: Intelligent node type management with user isolation
-- 📈 **Type Promotion System**: Promote user types to system-wide admin types
-- 🔄 **Intelligent Merging**: Automatic consolidation of duplicate types during promotion
+- 🎨 **Beautiful Login System**: Professional, centered login form with TopoVis branding
+- 📚 **Enhanced Wiki System**: Improved network tree navigation with ASCII-style styling
+- 🧭 **Standardized Navigation**: Consistent header navigation across all application pages
+- 📝 **Documentation Protection**: Prompt users before deleting nodes with documentation
+- 🔄 **UUID Conflict Resolution**: Generate new UUIDs during network import to prevent conflicts
+- 🎯 **Improved User Experience**: Enhanced tree navigation, better error handling, and professional styling
 
 ---
 
 ## 🚀 Features
 
 ### 🔐 Authentication & Authorization
-- **Secure Login System**: bcrypt password hashing
+- **Secure Login System**: bcrypt password hashing with beautiful, professional login interface
 - **Role-Based Access Control**:
   - **Admin**: Full access to all networks and user management
   - **User**: Create and manage own networks
@@ -50,7 +41,7 @@
   - **LAN**: Basic local network with routers, switches, and workstations
   - **Hetzner**: Server infrastructure with load balancers and databases
   - **Office**: Corporate network with VLANs and security zones
-- **Import/Export**: Share networks via JSON files
+- **Import/Export**: Share networks via JSON files with full documentation preservation
 - **Network Access Control**: Three levels of network access
   - **Private**: Only the network owner can access
   - **Shared**: Specific users can be granted access
@@ -67,6 +58,16 @@
 - **Enhanced Modals**: Improved network settings modal with better UX
 - **Real-time Updates**: Alpine.js powered reactive interface
 - **Keyboard Shortcuts**: Escape key to close modals, click-outside-to-close
+- **Documentation Protection**: Prompts users before deleting nodes with associated documentation
+
+### 📚 Network Wiki System
+- **Tree Navigation**: Hierarchical network topology visualization
+- **ASCII-Style Styling**: Clean, professional tree appearance
+- **Expanded by Default**: Tree nodes are expanded for immediate visibility
+- **Active Node Highlighting**: Selected nodes are clearly underlined
+- **Simplified Content**: Clean display of essential node information
+- **Documentation Display**: Full markdown support for node documentation
+- **Breadcrumb Navigation**: Easy navigation back to parent nodes
 
 ### ⚙️ Administration
 - **User Management**: Create, edit, delete users and reset passwords
@@ -82,7 +83,7 @@
 - **Database**: SQLite3 with automatic schema creation
 - **Frontend**: Vanilla JavaScript + Alpine.js for reactivity
 - **Authentication**: express-session + bcrypt
-- **Styling**: Custom CSS with dark theme
+- **Styling**: Custom CSS with dark theme and modern design patterns
 
 ---
 
@@ -124,7 +125,7 @@ The application automatically creates the following tables:
 
 - **users**: User accounts with roles and authentication
 - **networks**: Network definitions and metadata
-- **nodes**: Network devices with positions and properties
+- **nodes**: Network devices with positions and properties (including documentation)
 - **connections**: Links between network nodes
 - **network_access**: Network access control and sharing permissions
 - **node_types**: Device type definitions with isolation and promotion support
@@ -172,7 +173,7 @@ Device types are now managed through the database with intelligent isolation:
 ## 📚 API Endpoints
 
 ### Authentication
-- `POST /login` - User login
+- `POST /login` - User login with beautiful, professional interface
 - `POST /logout` - User logout
 - `GET /user/info` - Current user information
 
@@ -181,8 +182,8 @@ Device types are now managed through the database with intelligent isolation:
 - `POST /networks` - Create new network
 - `POST /networks/template` - Create from template
 - `GET /networks/:id/layout` - Get network layout
-- `POST /networks/:id/save` - Save network layout
-- `GET /networks/:id/export` - Export network to JSON
+- `POST /networks/:id/save` - Save network layout with documentation
+- `GET /networks/:id/export` - Export network to JSON with full documentation
 - `DELETE /networks/:id` - Delete network
 
 ### Network Access Control
@@ -209,7 +210,31 @@ Device types are now managed through the database with intelligent isolation:
 
 ## 🎨 Enhanced User Experience
 
-TopoVis v2.0.0 brings significant improvements to the user interface and experience.
+TopoVis v2.1.0 brings significant improvements to the user interface and experience.
+
+### Professional Login System
+
+- **Beautiful Design**: Centered, professional login form with TopoVis branding
+- **Responsive Layout**: Works perfectly on all devices
+- **Interactive Feedback**: Button changes to "Signing In..." on submit
+- **Error Handling**: Beautiful error pages with clear messages
+- **Modern Styling**: Glassmorphism effects, gradients, and smooth animations
+
+### Enhanced Wiki System
+
+- **Tree Navigation**: Hierarchical network topology visualization
+- **ASCII-Style Styling**: Clean, professional tree appearance with proper indentation
+- **Expanded by Default**: All tree nodes are expanded for immediate visibility
+- **Active Node Highlighting**: Selected nodes are clearly underlined
+- **Simplified Content**: Clean display of essential node information
+- **Documentation Support**: Full markdown rendering for node documentation
+
+### Standardized Navigation
+
+- **Consistent Header**: Fixed header navigation across all pages
+- **Unified Design**: Same navigation style on index, wiki, admin, and settings pages
+- **Professional Layout**: Clean, modern navigation with proper spacing
+- **Responsive Design**: Works seamlessly on all screen sizes
 
 ### Modal System Improvements
 
@@ -242,13 +267,15 @@ npm run dev
 ### Project Structure
 ```
 topovis/
-├── app.js              # Main server file
+├── app.js              # Main server file with enhanced login system
 ├── database/           # SQLite database files
 ├── public/             # Frontend assets
-│   ├── index.html      # Main network editor
-│   ├── admin.html      # Admin panel
-│   └── settings.html   # Settings page
+│   ├── index.html      # Main network editor with standardized navigation
+│   ├── wiki.html       # Enhanced wiki system with ASCII tree styling
+│   ├── admin.html      # Admin panel with consistent navigation
+│   └── settings.html   # Settings page with unified design
 ├── config.json         # Node type configuration
+├── CHANGELOG.md        # Complete version history and detailed changes
 └── package.json        # Dependencies and scripts
 ```
 
@@ -256,7 +283,7 @@ topovis/
 
 ## 🔧 Node Type Management
 
-TopoVis v2.0.0 introduces a sophisticated, database-driven node type management system that provides intelligent type isolation and promotion capabilities.
+TopoVis v2.1.0 introduces a sophisticated, database-driven node type management system that provides intelligent type isolation and promotion capabilities.
 
 ### Type Categories
 
@@ -288,7 +315,7 @@ TopoVis v2.0.0 introduces a sophisticated, database-driven node type management 
 
 ## 🔒 Network Access Control
 
-TopoVis v2.0.0 introduces sophisticated network access control, allowing network owners to precisely manage who can access their networks.
+TopoVis v2.1.0 introduces sophisticated network access control, allowing network owners to precisely manage who can access their networks.
 
 ### Access Levels
 
@@ -321,6 +348,7 @@ TopoVis v2.0.0 introduces sophisticated network access control, allowing network
 - **SQL Injection Protection**: Parameterized queries
 - **Network Access Control**: Granular network sharing with user-level permissions
 - **Owner Protection**: Network owners cannot be accidentally locked out
+- **Documentation Protection**: Prompts users before deleting nodes with documentation
 
 ---
 
@@ -333,6 +361,8 @@ TopoVis v2.0.0 introduces sophisticated network access control, allowing network
 3. **Permission Denied**: Ensure the `database/` directory is writable
 4. **Network Access Issues**: Check that users have proper access permissions
 5. **Modal Display Problems**: Ensure Alpine.js is properly loaded and initialized
+6. **Tree Navigation Issues**: Check browser console for JavaScript errors in wiki page
+7. **UUID Conflicts**: Ensure imported networks generate new UUIDs to prevent database conflicts
 
 ### Debug Mode
 Check browser console for detailed error messages and Alpine.js component state.
@@ -349,50 +379,31 @@ Check browser console for detailed error messages and Alpine.js component state.
 
 ---
 
-## 📋 Changelog
+## 📋 Current Version Changes (v2.1.0)
 
-### v2.0.0 (2025-08-29) - Major Release
+### ✨ New Features
+- **Beautiful Login System**: Professional, centered login form with TopoVis branding
+- **Enhanced Wiki System**: Improved network tree navigation with ASCII-style styling
+- **Standardized Navigation**: Consistent header navigation across all application pages
+- **Documentation Protection**: Prompt users before deleting nodes with documentation
+- **UUID Conflict Resolution**: Generate new UUIDs during network import to prevent conflicts
 
-#### ✨ New Features
-- **Multi-User System**: Complete user management with authentication
-- **Network Access Control**: Private, shared, and public network access levels
-- **User Sharing**: Grant specific users access to networks
-- **Network Templates**: Pre-built templates for common network types
-- **Import/Export**: JSON-based network sharing
-- **Admin Panel**: Comprehensive user and system management
-- **Role-Based Access Control**: Admin, User, and Read-only roles
-- **Database-Driven Node Types**: Intelligent type management with user isolation
-- **Type Promotion System**: Promote user types to system-wide admin types
-- **Intelligent Merging**: Automatic consolidation of duplicate types during promotion
+### 🔧 Improvements
+- **Login User Experience**: Professional, responsive login interface
+- **Wiki Tree Styling**: Clean, ASCII-style tree navigation
+- **Navigation Consistency**: Unified header design across all pages
+- **Documentation Handling**: Improved parsing and storage of node documentation
+- **Import/Export**: Enhanced data integrity with UUID regeneration
 
-#### 🔧 Improvements
-- **SQLite Database**: Persistent storage replacing file-based system
-- **Alpine.js Integration**: Modern reactive UI framework
-- **Enhanced Modals**: Improved user experience with better modal system
-- **Owner Protection**: Automatic inclusion of network owners in shared access
-- **Real-time Updates**: Immediate feedback on all operations
-- **Node Type Isolation**: Users can create types with same names (isolated per user)
-- **Admin Type Management**: System-wide type creation and management
-- **Promotion Interface**: Dropdown-based type promotion system
+### 🐛 Bug Fixes
+- **Tree Navigation**: Fixed CSS issues preventing proper tree display
+- **Documentation Detection**: Resolved issues with documentation parsing during deletion
+- **UUID Conflicts**: Fixed database constraint errors during network import
+- **Navigation Gaps**: Resolved visual spacing issues in header navigation
+- **Wiki Tree Expansion**: Fixed tree not expanding by default on page load
+- **Active Node Highlighting**: Resolved issues with selected node underlining
 
-#### 🐛 Bug Fixes
-- **Modal Display Issues**: Fixed modal visibility and state management
-- **Network Access**: Resolved 404 errors for shared network access
-- **User Management**: Fixed admin panel functionality and user operations
-- **Template Networks**: Fixed connection creation in template networks
-- **Node Type Conflicts**: Resolved 409 conflicts for user type creation
-- **Admin Type Visibility**: Fixed admin seeing other users' custom types
-- **Type Promotion Errors**: Resolved undefined variable errors in promotion system
-
-#### 🚀 Technical Improvements
-- **Backend Architecture**: Modular Express.js backend with middleware
-- **Database Schema**: Proper relational database design
-- **Security**: bcrypt password hashing and session management
-- **Error Handling**: Comprehensive error handling and user feedback
-- **Node Type System**: Database-driven type management with proper isolation
-- **Transaction Safety**: Database transactions for type promotion and merging
-- **Intelligent Merging**: Automatic duplicate detection and consolidation
-- **Permission System**: Granular type management permissions
+> 📚 **For complete version history and detailed changelog, see [CHANGELOG.md](CHANGELOG.md)**
 
 ---
 
